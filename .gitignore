@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+.devflow/config.local.json
+docs/plans/*/.lock

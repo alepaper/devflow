@@ -1,0 +1,14 @@
+{
+  "name": "alepaper",
+  "description": "Plugins propios para desarrollo asistido por agentes.",
+  "owner": {
+    "name": "Alepaper"
+  },
+  "plugins": [
+    {
+      "name": "devflow",
+      "source": "./plugins/devflow",
+      "description": "spec → tasks → autopilot. Requerimiento validado, tareas que no comparten archivos, TDD y revisión por un agente distinto. Sin dependencias."
+    }
+  ]
+}
