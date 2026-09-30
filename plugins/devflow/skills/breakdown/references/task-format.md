@@ -1,6 +1,6 @@
 # Formato de tarea
 
-Un archivo por tarea en `docs/plans/<slug>/tasks/T-00N.md`. En modo Linear, el mismo
+Un archivo por tarea en `docs/plans/<slug>/breakdown/T-00N.md`. En modo Linear, el mismo
 contenido va en el cuerpo del issue.
 
 ```markdown

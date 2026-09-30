@@ -4,7 +4,7 @@ Plugin de Claude Code para desarrollo asistido por agentes. Ocho skills que cubr
 ciclo desde el levantamiento del requerimiento hasta código revisado y commiteado.
 
 ```
-/spec → /spec-check → /tasks → /autopilot → /progress
+/spec → /spec-check → /breakdown → /autopilot → /progress
          validación    plan     ejecución    estado
 ```
 
@@ -15,12 +15,12 @@ runtime adicional.
 
 ## Requisitos
 
-| Requisito                                   | Necesidad                                                                                         |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Claude Code                                 | Obligatorio                                                                                       |
-| git                                         | Obligatorio — `/autopilot` hace un commit por tarea                                               |
+| Requisito | Necesidad |
+|---|---|
+| Claude Code | Obligatorio |
+| git | Obligatorio — `/autopilot` hace un commit por tarea |
 | CLI de revisión externo (`codex`, `gemini`) | Opcional. Sin él, `/cross-review` y `/spec-check` usan un subagente de Claude con contexto limpio |
-| Cuenta de [Linear](https://linear.app/)     | Opcional. Sin ella, las tareas viven en archivos                                                  |
+| Cuenta de [Linear](https://linear.app/) | Opcional. Sin ella, las tareas viven en archivos |
 
 ---
 
@@ -73,13 +73,11 @@ La ruta debe empezar por `./`, `../`, `/` o `~`. Un nombre sin prefijo devuelve
 
 ### 3. Como skills independientes
 
-Sin plugin. Ejecuta dentro de la carpeta devflow
+Sin plugin. Copia los directorios de skills a tu carpeta personal de Claude Code.
 
 ```bash
 ./install.sh
 ```
-
-Esto copia los directorios de skills a tu carpeta personal de Claude Code.
 
 En Windows (PowerShell):
 
@@ -89,7 +87,7 @@ New-Item -ItemType Directory -Force -Path $dest | Out-Null
 Copy-Item .\plugins\devflow\skills\* $dest -Recurse -Force
 ```
 
-Los comandos quedan sin prefijo (`/spec`, `/tasks`). Pierdes `/reload-plugins`, las
+Los comandos quedan sin prefijo (`/spec`, `/breakdown`). Pierdes `/reload-plugins`, las
 actualizaciones por marketplace y el namespace que evita choques de nombres.
 
 ### Verificación
@@ -107,14 +105,14 @@ ese nombre.
 
 ### Errores comunes
 
-| Mensaje                                                                | Causa                                                                                     | Solución                                                           |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `Invalid marketplace source format`                                    | La fuente no es `owner/repo`, una URL, ni una ruta que empiece por `./`, `../`, `/` o `~` | `alepaper/devflow` o `./devflow`                                   |
-| `Path does not exist: <ruta>`                                          | El formato es correcto, la carpeta no está ahí                                            | Corre el comando desde la carpeta padre                            |
-| `Marketplace file not found at <ruta>/.claude-plugin/marketplace.json` | Apuntaste a la carpeta equivocada                                                         | La raíz es la que contiene `.claude-plugin/`, no `plugins/devflow` |
-| `Plugin "devflow" not found in marketplace "alepaper"`                 | Catálogo local desactualizado                                                             | `claude plugin marketplace update alepaper`                        |
-| Instaló pero los comandos no aparecen                                  | Instalaste durante una sesión activa                                                      | `/reload-plugins`                                                  |
-| `Skills (0)` en `plugin details`                                       | Usaste `--plugin-dir` apuntando a la raíz del marketplace                                 | Apunta a `./devflow/plugins/devflow`, o usa la vía 1               |
+| Mensaje | Causa | Solución |
+|---|---|---|
+| `Invalid marketplace source format` | La fuente no es `owner/repo`, una URL, ni una ruta que empiece por `./`, `../`, `/` o `~` | `alepaper/devflow` o `./devflow` |
+| `Path does not exist: <ruta>` | El formato es correcto, la carpeta no está ahí | Corre el comando desde la carpeta padre |
+| `Marketplace file not found at <ruta>/.claude-plugin/marketplace.json` | Apuntaste a la carpeta equivocada | La raíz es la que contiene `.claude-plugin/`, no `plugins/devflow` |
+| `Plugin "devflow" not found in marketplace "alepaper"` | Catálogo local desactualizado | `claude plugin marketplace update alepaper` |
+| Instaló pero los comandos no aparecen | Instalaste durante una sesión activa | `/reload-plugins` |
+| `Skills (0)` en `plugin details` | Usaste `--plugin-dir` apuntando a la raíz del marketplace | Apunta a `./devflow/plugins/devflow`, o usa la vía 1 |
 
 ---
 
@@ -135,7 +133,7 @@ claude plugin marketplace remove alepaper
 Si instalaste como skills independientes:
 
 ```bash
-rm -rf ~/.claude/skills/{spec,spec-check,tasks,autopilot,cross-review,progress,tracker,tdd}
+rm -rf ~/.claude/skills/{spec,spec-check,breakdown,autopilot,cross-review,progress,tracker,tdd}
 ```
 
 Ninguna de las tres borra los artefactos de tus proyectos. `docs/plans/` queda intacto,
@@ -151,19 +149,18 @@ claude plugin disable devflow@alepaper
 
 ## Skills
 
-| Comando         | Función                                                                                                                                                                                                                                   |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/spec`         | Entrevista una pregunta a la vez hasta que el requerimiento no tenga ambigüedad. Valida el borrador en tres capas antes de pedir aprobación. Produce `spec.md`.                                                                           |
-| `/spec-check`   | Envía el spec a un agente distinto del que lo escribió. Detecta ambigüedades, criterios no falsables, soluciones disfrazadas de requerimiento, contradicciones y dependencias no confirmadas. Veredicto: `LISTO`, `HUECOS` o `BLOQUEADO`. |
-| `/tasks`        | Parte el spec en tareas verticales. Construye la matriz archivo → tareas y convierte cada colisión en dependencia. Produce `plan.md` y un archivo por tarea.                                                                              |
-| `/autopilot`    | Reparte tareas a N agentes, con TDD obligatorio, revisión por un agente distinto y un commit por tarea. Argumentos: `dev`, `test`, `review`, `task T-00N`, `all`.                                                                         |
-| `/cross-review` | Revisa código con un agente distinto del que lo escribió. Veredicto: `APPROVED`, `CHANGES_REQUESTED` o `BLOCKED`.                                                                                                                         |
-| `/progress`     | Estado del plan: hecho, en vuelo, listo, bloqueado, y la próxima decisión pendiente. Solo lectura.                                                                                                                                        |
-| `/tracker`      | Registra las tareas en Linear y migra planes existentes preservando estado. Reversible.                                                                                                                                                   |
-| `tdd`           | Red-green-refactor y depuración por causa raíz. `user-invocable: false`: la carga Claude durante la implementación y no aparece en el menú de `/`.                                                                                        |
+| Comando | Función |
+|---|---|
+| `/spec` | Entrevista una pregunta a la vez hasta que el requerimiento no tenga ambigüedad. Valida el borrador en tres capas antes de pedir aprobación. Produce `spec.md`. |
+| `/spec-check` | Envía el spec a un agente distinto del que lo escribió. Detecta ambigüedades, criterios no falsables, soluciones disfrazadas de requerimiento, contradicciones y dependencias no confirmadas. Veredicto: `LISTO`, `HUECOS` o `BLOQUEADO`. |
+| `/breakdown` | Parte el spec en tareas verticales. Si hay varios specs, los lista para que elijas uno, varios o todos. Construye la matriz archivo → tareas y convierte cada colisión en dependencia. Produce `plan.md` y un archivo por tarea. |
+| `/autopilot` | Reparte tareas a N agentes, con TDD obligatorio, revisión por un agente distinto y un commit por tarea. Argumentos: `dev`, `test`, `review`, `task T-00N`, `all`. |
+| `/cross-review` | Revisa código con un agente distinto del que lo escribió. Veredicto: `APPROVED`, `CHANGES_REQUESTED` o `BLOCKED`. |
+| `/progress` | Estado del plan: hecho, en vuelo, listo, bloqueado, y la próxima decisión pendiente. Solo lectura. |
+| `/tracker` | Registra las tareas en Linear y migra planes existentes preservando estado. Reversible. |
+| `tdd` | Red-green-refactor y depuración por causa raíz. `user-invocable: false`: la carga Claude durante la implementación y no aparece en el menú de `/`. |
 
-Tres nombres difieren del obvio porque el obvio está tomado por Claude Code: `/tasks` (no
-`/plan`), `/cross-review` (no `/review`), `/progress` (no `/status`).
+Tres nombres difieren del obvio porque el obvio está tomado por Claude Code: `/breakdown` (no `/plan` ni `/tasks`), `/cross-review` (no `/review`), `/progress` (no `/status`).
 
 Referencia extendida con el flujo sesión por sesión:
 [plugins/devflow/USO.md](plugins/devflow/USO.md).
@@ -250,10 +247,28 @@ que Claude rellene.
 ### Paso 3 — Partir en tareas
 
 ```
-/tasks
+/breakdown
 ```
 
-Construye la matriz archivo → tareas, que es donde aparecen las colisiones:
+Si hay varios specs en `docs/plans/`, primero los lista para que elijas:
+
+```
+Encontré 4 specs en docs/plans/:
+
+  #  Plan                        Estado     Validación      Plan
+  1  recuperacion-de-contrasena  aprobado   spec-check ✔    —
+  2  portal-ds                   aprobado   sin validar     —
+  3  notificaciones-push         aprobado   spec-check ✔    ya planeado (7 tareas)
+  4  reportes-mensuales          borrador   —               —
+
+¿Cuál planeo? Puedes decirme un número, varios (1,2), o "todos".
+```
+
+Si eliges varios, la matriz de archivos se construye **sobre todos a la vez**: dos planes
+en paralelo pueden chocar en un archivo igual que dos tareas del mismo plan, y una matriz
+por plan no lo vería.
+
+Luego construye la matriz, que es donde aparecen las colisiones:
 
 ```
 | Archivo                    | Tareas        |
@@ -315,7 +330,7 @@ y cuál es la próxima decisión que te toca.
 
 [Linear](https://linear.app/) sirve como tablero visual de las tareas del plan. Es
 opcional: por defecto las tareas viven en archivos markdown dentro de
-`docs/plans/<plan>/tasks/`, y el flujo funciona igual sin cuenta.
+`docs/plans/<plan>/breakdown/`, y el flujo funciona igual sin cuenta.
 
 ### Configuración
 
@@ -344,14 +359,14 @@ linear_label: devflow
 - `/autopilot` actualiza el estado del issue en cada transición y publica el veredicto de
   revisión como comentario
 
-| Estado en el archivo | Estado en Linear                             |
-| -------------------- | -------------------------------------------- |
-| `pending`            | Todo / Backlog                               |
-| `in_progress`        | In Progress                                  |
-| `in_review`          | In Review                                    |
-| `changes_requested`  | In Progress + comentario con los bloqueantes |
-| `blocked`            | Blocked + comentario con la causa            |
-| `done`               | Done                                         |
+| Estado en el archivo | Estado en Linear |
+|---|---|
+| `pending` | Todo / Backlog |
+| `in_progress` | In Progress |
+| `in_review` | In Review |
+| `changes_requested` | In Progress + comentario con los bloqueantes |
+| `blocked` | Blocked + comentario con la causa |
+| `done` | Done |
 
 ### Migración y reversa
 
@@ -380,7 +395,7 @@ Consecuencia: dos agentes en paralelo nunca escriben los mismos bytes, sin locks
 coordinación en tiempo de ejecución.
 
 Costo: un archivo que necesitan cinco tareas las serializa. Los planes resultan más
-secuenciales, y habrá olas de un solo agente. `/tasks` reporta el ancho de cada ola como
+secuenciales, y habrá olas de un solo agente. `/breakdown` reporta el ancho de cada ola como
 número recomendado de agentes, con tope de 4.
 
 ### Invariantes
@@ -410,15 +425,15 @@ docs/plans/<plan>/
 Cada archivo de tarea tiene un único escritor: el agente asignado a esa tarea. El campo
 `estado` de su frontmatter es la fuente de verdad.
 
-Toda la configuración vive en el frontmatter de `plan.md`, escrito una vez por `/tasks`:
+Toda la configuración vive en el frontmatter de `plan.md`, escrito una vez por `/breakdown`:
 
 ```yaml
-tracker: archivos # archivos | linear
+tracker: archivos                               # archivos | linear
 cmd_test: npm test
 cmd_build: npm run build
 cmd_lint: npm run lint
-reviewer: codex exec --skip-git-repo-check - # o: subagente
-webhook: # opcional, Slack/Discord
+reviewer: codex exec --skip-git-repo-check -    # o: subagente
+webhook:                                        # opcional, Slack/Discord
 ```
 
 ---
@@ -440,7 +455,7 @@ devflow/                              # raíz del marketplace
 ## Limitaciones conocidas
 
 - **Despliegue fuera de alcance.** El flujo termina en código revisado y commiteado.
-- **Validación del grafo manual.** `/tasks` verifica ciclos y dependencias inexistentes
+- **Validación del grafo manual.** `/breakdown` verifica ciclos y dependencias inexistentes
   con un checklist, no con una herramienta.
 - **`/autopilot` sin validar de punta a punta** contra un repositorio real con revisor
   externo. Arranca con `/autopilot task T-001` y un agente antes de escalar.

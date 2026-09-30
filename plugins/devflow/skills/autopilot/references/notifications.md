@@ -1,6 +1,6 @@
 # Notificaciones sin herramientas
 
-Una línea de shell. Sin Python, sin scripts instalados.
+Una línea de shell. No hay nada que instalar.
 
 ## Detección y envío
 

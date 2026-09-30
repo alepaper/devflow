@@ -1,7 +1,7 @@
 ---
 name: tracker
 argument-hint: "[off | nombre-del-plan]"
-description: Decides and manages where tasks are recorded — Linear issues or local files under docs/plans/<plan>/ — and keeps them in sync with the execution state. Sets up Linear on demand and migrates existing file-based tasks into it without losing progress. Use when the user says "configura Linear", "conecta Linear", "quiero las tareas en Linear", "sincroniza el tablero", when /tasks asks where to record tasks, or when local state and the tracker have drifted apart.
+description: Decides and manages where tasks are recorded — Linear issues or local files under docs/plans/<plan>/ — and keeps them in sync with the execution state. Sets up Linear on demand and migrates existing file-based tasks into it without losing progress. Use when the user says "configura Linear", "conecta Linear", "quiero las tareas en Linear", "sincroniza el tablero", when /breakdown asks where to record tasks, or when local state and the tracker have drifted apart.
 ---
 
 # Tracker — Linear or Files
@@ -11,7 +11,7 @@ description: Decides and manages where tasks are recorded — Linear issues or l
 Tasks need to live somewhere a human can see them. Two options, and the choice is
 reversible at any moment:
 
-- **Files (default)** — `docs/plans/<slug>/tasks/T-00N.md`. No setup, no account, works
+- **Files (default)** — `docs/plans/<slug>/breakdown/T-00N.md`. No setup, no account, works
   offline, versioned with the code.
 - **Linear** — one issue per task, dependencies as blocking relations, visible to a team.
 
@@ -26,22 +26,22 @@ When they disagree, the task file wins and the issue gets corrected.
 
 ## When to Use
 
-- `/tasks` needs to know where to record tasks
+- `/breakdown` needs to know where to record tasks
 - The user asks to set up, connect, or switch to Linear
 - The user asks to sync, or the board looks out of date
 - Tasks were created as files and now need to move to Linear
 
 ## Files mode (default)
 
-No setup. `/tasks` writes one file per task using the format in
-`../tasks/references/task-format.md`.
+No setup. `/breakdown` writes one file per task using the format in
+`../breakdown/references/task-format.md`.
 
 The `estado` frontmatter field is the state. The agent that owns the task updates it and
 appends to that task's bitácora — nobody else writes that file. That's what lets a human open
 the folder and understand where things stand without running anything.
 
 This is the right default. Never push a user toward Linear who didn't ask — offer it once
-during `/tasks` and move on.
+during `/breakdown` and move on.
 
 ## Linear mode
 

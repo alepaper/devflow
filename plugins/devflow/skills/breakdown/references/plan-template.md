@@ -1,6 +1,6 @@
 # Plantilla de plan
 
-Guarda esto en `docs/plans/<slug>/tasks.md`.
+Guarda esto en `docs/plans/<slug>/breakdown.md`.
 
 ```markdown
 ---

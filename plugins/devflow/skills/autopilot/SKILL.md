@@ -1,7 +1,7 @@
 ---
 name: autopilot
 argument-hint: "[dev | test | review | task T-00N | all]"
-description: Executes an approved plan by dispatching tasks to one or several agents — the orchestrator assigns, nobody self-claims. Each task is implemented test-first, reviewed by a DIFFERENT agent (Claude subagent or an external CLI like codex), committed individually, and logged in its own task file. Also reports progress and notifies when each task and the whole plan finish. Use whenever the user says "autopilot", "arranca el desarrollo", "ejecuta el plan", "sigue con las tareas", "¿cómo va?", "estado", or asks to run only part of the loop (solo desarrollar, solo probar, solo revisar). Requires an approved plan from /tasks.
+description: Executes an approved plan by dispatching tasks to one or several agents — the orchestrator assigns, nobody self-claims. Each task is implemented test-first, reviewed by a DIFFERENT agent (Claude subagent or an external CLI like codex), committed individually, and logged in its own task file. Also reports progress and notifies when each task and the whole plan finish. Use whenever the user says "autopilot", "arranca el desarrollo", "ejecuta el plan", "sigue con las tareas", "¿cómo va?", "estado", or asks to run only part of the loop (solo desarrollar, solo probar, solo revisar). Requires an approved plan from /breakdown.
 ---
 
 # Autopilot — Dispatched Parallel Execution
@@ -28,11 +28,11 @@ dependencies met, both take it. With a single dispatcher there is nothing to rac
 
 ## When to Use
 
-- An approved plan exists at `docs/plans/<slug>/tasks.md` with task files
+- An approved plan exists at `docs/plans/<slug>/breakdown.md` with task files
 - The user wants to run all of it, or just one stage of it
 - The user asks how the work is going
 
-**Hard precondition:** no approved plan → stop and run `/tasks`. Never invent tasks.
+**Hard precondition:** no approved plan → stop and run `/breakdown`. Never invent tasks.
 
 ## Modes
 
@@ -54,7 +54,7 @@ Anything unrecognized → treat as `all` and say which mode you picked.
 
 ### 1. Read the board
 
-Read every file in `docs/plans/<slug>/tasks/`. Their `estado` frontmatter is the truth.
+Read every file in `docs/plans/<slug>/breakdown/`. Their `estado` frontmatter is the truth.
 Build the picture yourself:
 
 - **done** — finished and approved

@@ -1,7 +1,7 @@
 ---
 name: spec-check
 argument-hint: "[ruta al spec]"
-description: Validates a written requirement by sending it to a DIFFERENT agent — ideally a different model — which finds ambiguities, unfalsifiable success criteria, solutions disguised as requirements, contradictions, undefined terms and missing failure modes. Returns a structured verdict. Use before approving any spec, before /tasks, when the user says "valida el spec", "revisa el requerimiento", "¿esto está bien entendido?", or when inheriting a spec someone else wrote. Never let the agent that wrote the spec be the one that validates it.
+description: Validates a written requirement by sending it to a DIFFERENT agent — ideally a different model — which finds ambiguities, unfalsifiable success criteria, solutions disguised as requirements, contradictions, undefined terms and missing failure modes. Returns a structured verdict. Use before approving any spec, before /breakdown, when the user says "valida el spec", "revisa el requerimiento", "¿esto está bien entendido?", or when inheriting a spec someone else wrote. Never let the agent that wrote the spec be the one that validates it.
 ---
 
 # Spec-check — Validation by a Different Agent
@@ -21,7 +21,7 @@ opinion, not a gate.
 ## When to Use
 
 - A spec draft exists and is about to be approved
-- Before `/tasks`, for anything that will take more than a few days to build
+- Before `/breakdown`, for anything that will take more than a few days to build
 - The user inherited a spec and wants to know if it's buildable
 - The user asks to validate, sanity-check or review a requirement
 

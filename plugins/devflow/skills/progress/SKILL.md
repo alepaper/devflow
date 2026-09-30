@@ -38,7 +38,7 @@ implementing from a progress check.
 
 ### 2. Read every task file
 
-`docs/plans/<slug>/tasks/*.md`. From each frontmatter: `estado`, `depende_de`, and the
+`docs/plans/<slug>/breakdown/*.md`. From each frontmatter: `estado`, `depende_de`, and the
 agent and review rounds from its bitácora.
 
 ### 3. Classify

@@ -1,6 +1,6 @@
 ---
-name: tasks
-argument-hint: "[nombre-del-plan]"
+name: breakdown
+argument-hint: "[plan] — vacío para elegir entre los specs aprobados"
 description: Breaks an approved spec into small tasks whose file sets never overlap, so two tasks can never collide. Any shared file becomes a dependency instead. Produces one markdown file per task with dependencies, acceptance criteria and declared files, in Linear or under docs/plans/<plan>/. Use whenever the user says "planea", "divide esto en tareas", "arma el plan", "¿cómo lo partimos?", right after a spec is approved, or before running /autopilot. Always run this before any implementation begins.
 ---
 
@@ -25,7 +25,7 @@ all five. Some plans will have stretches where only one agent can work. That's t
 **No scripts, no state engine.** The task files *are* the state. Each task file is
 written by exactly one agent, so nothing is ever contended.
 
-`$ARGUMENTS` may name the plan. If it's empty, use the most recently approved spec.
+`$ARGUMENTS` may name a plan slug. If it's empty, run Step 0 and let the user choose.
 
 ## When to Use
 
@@ -41,6 +41,69 @@ before planning. Planning around an unvalidated spec turns its ambiguities into 
 and a task built on an ambiguity gets built twice.
 
 ## The Process
+
+### Step 0 — Choose which spec or specs to plan
+
+Skip this only when `$ARGUMENTS` names a slug, or when exactly one approved spec exists
+and it has no plan yet.
+
+Scan `docs/plans/*/spec.md` and show everything you found. Don't pick silently — the
+user may have written three specs and want only one of them planned now.
+
+```
+Encontré 4 specs en docs/plans/:
+
+  #  Plan                        Estado     Validación      Plan
+  1  recuperacion-de-contrasena  aprobado   spec-check ✔    —
+  2  portal-ds                   aprobado   sin validar     —
+  3  notificaciones-push         aprobado   spec-check ✔    ya planeado (7 tareas)
+  4  reportes-mensuales          borrador   —               —
+
+¿Cuál planeo? Puedes decirme un número, varios (1,2), o "todos".
+  · #3 ya tiene plan: replanearlo reemplaza sus tareas abiertas.
+  · #4 sigue en borrador, no se puede planear todavía.
+```
+
+Show, per spec: slug, `estado`, `validado_con` / `spec_check`, and whether `plan.md` or
+`tasks/` already exist.
+
+Rules for what's selectable:
+
+- **`estado: borrador`** → not plannable. Say so and point at `/spec` to finish it.
+- **`spec_check: HUECOS` or empty `validado_con`** → plannable, but warn before starting.
+  Planning around an unvalidated spec turns its ambiguities into tasks, and a task built
+  on an ambiguity gets built twice.
+- **Already has `plan.md` with open tasks** → never overwrite silently. Ask whether to
+  replace it, extend it, or skip it.
+
+If the user says "todos", read it as *all approved ones* and say which you excluded.
+
+### Step 0b — When several specs are selected
+
+Each spec keeps its own `docs/plans/<slug>/` folder. What changes is the matrix.
+
+**Build one file matrix spanning every selected spec.** The whole guarantee is that two
+tasks running in parallel never touch the same file, and two plans running in parallel
+break it just as easily as two tasks in one plan. A per-plan matrix would miss exactly
+the collisions that are hardest to debug, because they'd come from a plan the agent
+isn't looking at.
+
+A collision between plans is resolved the same three ways, plus a fourth:
+
+- Split the file, extract an upstream task, or chain the tasks — as within one plan
+- **Cross-plan dependency:** a task can depend on a task in another plan, written
+  qualified: `depende_de: [portal-ds/T-003]`
+
+Two things to surface to the user when they pick several:
+
+- **Heavy overlap means they may be one spec.** If two specs collide on many files, say
+  so. Two specs that rewrite the same module are usually one piece of work that got
+  written down twice.
+- **Wave numbering is global.** With several plans, "Ola 2" spans all of them. Say which
+  plan each task belongs to in the wave map, or the numbers mislead.
+
+If the user picks several and you can't build a clean combined matrix, plan them one at a
+time and say plainly that running their autopilots concurrently isn't safe.
 
 ### Step 1 — Read-only reconnaissance
 
@@ -132,7 +195,7 @@ running it with three just means two idle agents.
 
 ### Step 6 — Write one file per task
 
-`docs/plans/<slug>/tasks/T-00N.md`, using `references/task-format.md`.
+`docs/plans/<slug>/breakdown/T-00N.md`, using `references/task-format.md`.
 
 **The task file is the state.** Its `estado` field in frontmatter is the truth. One agent
 owns one task file and is its only writer. There is no `state.json`, no `log.md`, no
@@ -190,6 +253,8 @@ docs/plans/<slug>/
 | "Marco todo como dependiente, por si acaso" | That serializes the plan and wastes the extra agents. Only real dependencies. |
 | "Esta tarea es grande pero la entiendo" | The agent picking it up in a fresh context doesn't. Split it. |
 | "Reemplazo el plan viejo, ya está obsoleto" | Its open tasks may be mid-build in another terminal. Ask. |
+| "Hay varios specs, tomo el más reciente" | The user may have written three and want the oldest. Show them and let them pick. |
+| "Planeo cada spec por separado, es más limpio" | Then nothing checks for file collisions between plans, and those are the worst ones to debug. |
 
 ## Red Flags
 
@@ -201,11 +266,20 @@ docs/plans/<slug>/
 - A `depende_de` pointing at a task that doesn't exist
 - A task that never lands in any wave (that's a cycle)
 - A shared `state.json`, `log.md` or board file that several agents write
+- Picking a spec silently when several exist
+- Planning a spec still in `borrador`
+- Replacing a plan that has open tasks without asking
+- A per-plan matrix when several plans were selected — cross-plan collisions go unseen
 - Writing to the repo root instead of `docs/plans/<slug>/`
 - Starting to implement in the same turn the plan was approved
 
 ## Verification
 
+- [ ] Every spec found was shown to the user, with its state and validation, before planning
+- [ ] Nothing in `borrador` was planned
+- [ ] Any existing plan with open tasks was confirmed before being touched
+- [ ] With several specs selected: the file matrix spans all of them, and cross-plan
+      dependencies are written qualified (`<plan>/T-00N`)
 - [ ] An approved spec existed before planning started
 - [ ] Every task declares its files as concrete paths
 - [ ] The file → tasks matrix is written into `plan.md`

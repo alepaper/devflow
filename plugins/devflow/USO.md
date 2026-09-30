@@ -139,8 +139,16 @@ spec_check: LISTO
 ### 2. Partir en tareas
 
 ```
-/tasks
+/breakdown
 ```
+
+Si tienes varios specs escritos, primero te los lista con su estado y validación para que
+elijas uno, varios o todos. Los que estén en `borrador` los marca como no planeables, y
+si alguno ya tiene plan con tareas abiertas te pregunta antes de tocarlo.
+
+Si eliges varios, la matriz de archivos abarca todos: dos planes distintos pueden chocar
+en un archivo igual que dos tareas del mismo plan, y las dependencias entre planes se
+escriben calificadas (`portal-ds/T-003`).
 
 Lee el spec, reconoce el código, detecta tus comandos reales de test y build, y arma la
 **matriz archivo → tareas**. Ahí es donde aparece lo interesante:
@@ -264,7 +272,7 @@ no insistirle:
 deseado en una frase ahora mismo, no lo está. Es la hora más barata del proyecto.
 
 **Montar más agentes que el ancho de la ola.** Los sobrantes se quedan esperando y
-aumentan el riesgo de conflicto. El número que te da `/tasks` es el útil.
+aumentan el riesgo de conflicto. El número que te da `/breakdown` es el útil.
 
 **Aprobar el plan sin mirar la matriz.** Es lo único que garantiza que el paralelismo es
 seguro, y es rápido de revisar.
@@ -281,7 +289,7 @@ por tarea y pierdes el rollback limpio.
 
 Pégalo en Claude Code dentro del repo:
 
-> Tengo instalada la librería de skills **devflow**: `/spec`, `/tasks`, `/autopilot`,
+> Tengo instalada la librería de skills **devflow**: `/spec`, `/breakdown`, `/autopilot`,
 > `/cross-review`, `/progress`, `/tracker`, más la skill `tdd` que se activa sola.
 >
 > Quiero construir: **<describe en una o dos frases lo que quieres>**

@@ -1,7 +1,7 @@
 ---
 name: spec
-argument-hint: "[tema inicial]"
-description: Turns a vague request into an approved, written requirement by interviewing the user one question at a time until intent is unambiguous. Use this at the start of ANY new feature, project, refactor or change — whenever the user says "quiero construir", "necesito una feature", "vamos a hacer X", "levantemos el requerimiento", or hands over an idea that is not yet written down as a spec. Use it whenever you notice yourself about to guess at scope, users, success criteria or constraints. Always run this before /tasks and before writing any code.
+argument-hint: "describe el proyecto o feature con todo el detalle que tengas: qué, para quién, restricciones"
+description: Turns a vague request into an approved, written requirement by interviewing the user one question at a time until intent is unambiguous. Use this at the start of ANY new feature, project, refactor or change — whenever the user says "quiero construir", "necesito una feature", "vamos a hacer X", "levantemos el requerimiento", or hands over an idea that is not yet written down as a spec. Use it whenever you notice yourself about to guess at scope, users, success criteria or constraints. Always run this before /breakdown and before writing any code.
 ---
 
 # Spec — Requirement Elicitation
@@ -13,7 +13,7 @@ close that gap is before any plan or code exists. After code exists, switching c
 are real and the user will rationalize the wrong thing into a "good enough" thing.
 
 This skill produces one artifact: an **approved spec** at
-`docs/plans/<plan-slug>/spec.md`. Nothing downstream (`/tasks`, `/autopilot`) may start
+`docs/plans/<plan-slug>/spec.md`. Nothing downstream (`/breakdown`, `/autopilot`) may start
 without it, and nothing gets approved without passing Step 7.
 
 **Language:** this file is instructions for you. Talk to the user in Spanish and write
@@ -31,7 +31,7 @@ all generated documents in Spanish.
 
 **When NOT to use:** unambiguous self-contained changes ("renombra esta variable",
 "arregla este typo"), pure questions about how something works, or when a spec for this
-work already exists and is still accurate (then go straight to `/tasks`).
+work already exists and is still accurate (then go straight to `/breakdown`).
 
 **Do not run this in a non-interactive context** (CI, unattended loop). It needs a live
 user. If the request is underspecified and nobody is there to answer, stop and say so.
@@ -253,16 +253,16 @@ spec nobody stress-tested, and whoever picks it up later should know that.
 
 Say exactly this, then stop:
 
-> Spec aprobado en `docs/plans/<slug>/spec.md`. El siguiente paso es `/tasks` para
+> Spec aprobado en `docs/plans/<slug>/spec.md`. El siguiente paso es `/breakdown` para
 > partirlo en tareas con dependencias. ¿Seguimos?
 
-Do not start planning in the same turn. `/tasks` is a separate gate.
+Do not start planning in the same turn. `/breakdown` is a separate gate.
 
 ## Output
 
 `docs/plans/<plan-slug>/spec.md` — with `estado: aprobado` in frontmatter.
 
-Nothing else. No tasks, no code, no file scaffolding. Those belong to `/tasks` and
+Nothing else. No tasks, no code, no file scaffolding. Those belong to `/breakdown` and
 `/autopilot`.
 
 ## Common Rationalizations
@@ -320,4 +320,4 @@ Nothing else. No tasks, no code, no file scaffolding. Those belong to `/tasks` a
 - [ ] `validado_con` records which layers actually ran
 - [ ] The user gave an explicit yes and `estado: aprobado` is in the frontmatter
 - [ ] The file lives at `docs/plans/<slug>/spec.md` and nowhere else
-- [ ] You stopped and handed off to `/tasks` instead of continuing
+- [ ] You stopped and handed off to `/breakdown` instead of continuing

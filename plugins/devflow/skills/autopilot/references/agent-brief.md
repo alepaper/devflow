@@ -10,7 +10,7 @@ El orquestador asigna la tarea **por nombre**. El agente nunca elige.
 Eres el agente <A1>. Tu tarea asignada es <T-003> del plan <slug>.
 No tomes ninguna otra tarea. Si terminas, reporta y para.
 
-1. Lee docs/plans/<slug>/tasks/T-003.md completo.
+1. Lee docs/plans/<slug>/breakdown/T-003.md completo.
 
 2. Cambia su frontmatter a `estado: in_progress` y agrega a la bitácora:
    `- <fecha ISO> A1 tomó la tarea`
@@ -34,7 +34,7 @@ No tomes ninguna otra tarea. Si terminas, reporta y para.
 
 Restricciones duras:
 - Solo edita los archivos que TU tarea declara. Ningún otro.
-- Solo escribe en docs/plans/<slug>/tasks/T-003.md. Ningún otro archivo del plan.
+- Solo escribe en docs/plans/<slug>/breakdown/T-003.md. Ningún otro archivo del plan.
 - Si necesitas tocar un archivo no declarado, PARA y reporta: el plan tiene una
   colisión que la matriz no vio, y eso se arregla en el plan, no improvisando.
 - Si un test no pasa y no es obvio por qué, PARA y reporta.

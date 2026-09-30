@@ -59,7 +59,7 @@ The reviewer gets no conversation history — everything it needs must be in the
 
 ```bash
 git diff <base>..HEAD -- <archivos de la tarea>    # el cambio
-cat docs/plans/<slug>/tasks/T-003.md               # criterios de aceptación
+cat docs/plans/<slug>/breakdown/T-003.md               # criterios de aceptación
 <comando de test>                                  # salida real de los tests
 ```
 
