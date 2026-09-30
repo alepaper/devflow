@@ -125,10 +125,91 @@ Each task delivers one complete working path, not one architectural layer.
 
 Horizontal slices serialize everything and share files by construction.
 
+### Step 2b — Inventory what asserts the current behavior
+
+**Run this before declaring files.** The matrix answers *"do these tasks collide?"* It
+does not answer *"did we list everything this change invalidates?"* Those are different
+questions, and only the second one catches stale text.
+
+Skip it only for purely additive work — a new file, a new endpoint, nothing that
+contradicts something already written.
+
+#### When it applies
+
+Any change that reverses or redefines something already true in the repo:
+
+- A default changes
+- A rule is removed, inverted, or given an exception
+- A name changes — command, file, field, flag, status value
+- An interface changes shape
+- Something documented as impossible becomes possible, or the reverse
+- A dependency or a step is removed
+
+Removals are the worst offenders. Deleting a component leaves every sentence that
+mentioned it behind, and those sentences read as current.
+
+#### How to build it
+
+For each behavior the change touches, find **what claims it today** — not what calls it.
+A symbol search finds the code; prose that asserts the old rule has no symbol.
+
+Search three ways, because each misses what the others catch:
+
+1. The old **name** (`state.json`, `--plugin-dir`, the old command)
+2. The old **concept in prose** ("el estado vive en", "se instala con", "requiere Python")
+3. The **inverse claim** — text that says something is impossible, required or absent
+   that is about to stop being true
+
+Surfaces worth checking, in rough order of how often they're missed:
+
+| Surface | Why it gets missed |
+|---|---|
+| README and `docs/` | Everyone assumes someone else updates them |
+| Templates and scaffolding | They *generate* the stale text into new files |
+| Examples inside documentation | Copy-pasted by users, so wrong examples spread |
+| Tests that encode the old rule | They pass, so nothing flags them |
+| Help text and error messages | Live in strings, invisible to a symbol search |
+| Other prompts, skills or agent instructions | Assert behavior in prose, never in code |
+| Comments and changelogs | Nobody greps comments |
+| The plan's own artifacts | `spec.md` and the task templates state rules too |
+
+That last row matters: if a rule applies to the system, it applies to the system's own
+documents. A plan that changes a rule and leaves its own spec asserting the old one is
+inconsistent by construction.
+
+#### The output
+
+A table, written into `plan.md`:
+
+| Afirmación que cambia | Dónde se afirma hoy | Tarea |
+|---|---|---|
+| El estado vive en `state.json` | `README.md` §Artefactos, `USO.md` §3, `skills/autopilot/SKILL.md` | T-004 |
+| Se instala con `--plugin-dir` | `README.md` §Instalación, `INSTALAR.md` | T-004 |
+
+**Every surface must have an owning task.** A surface with no task is an incomplete plan,
+not a documentation chore for later — "later" means it surfaces in review, which is the
+expensive place to find it.
+
+These surfaces then flow into Step 3 as declared files, so the matrix resolves their
+collisions like any others. Frequently one documentation task ends up owning several
+surfaces; that's fine and usually correct, since they change together and a single writer
+keeps them consistent.
+
+#### Sizing
+
+Updating documentation is a task with acceptance criteria like any other:
+
+```
+- [ ] Ninguna búsqueda de "state.json" devuelve texto que lo presente como vigente
+- [ ] Los ejemplos del README corren tal como están escritos
+```
+
+A criterion phrased as a search is verifiable, which is what makes the task closeable.
+
 ### Step 3 — Declare the files, then build the matrix
 
 For every task, list the files it will create or modify. Concrete paths, not "los
-archivos de auth".
+archivos de auth". Include every surface from Step 2b.
 
 Then build a **file → tasks** matrix. This is the heart of the method:
 
@@ -249,6 +330,10 @@ docs/plans/<slug>/
 |---|---|
 | "Comparten archivo pero editan partes distintas" | Two agents writing one file is a conflict regardless of which lines. It's a dependency. |
 | "Hago la matriz mental, no la escribo" | The matrix is where you *find* the collisions. Unwritten, you'll miss one. |
+| "La matriz ya cubre qué archivos se tocan" | It checks the files you listed. It can't tell you the list is short. |
+| "La documentación la actualizo al final" | "Al final" is review, and review is the expensive place to find stale text. |
+| "Busqué el símbolo y no aparece en más lados" | Prose that asserts the old rule has no symbol. Search the concept and the inverse claim too. |
+| "Es solo un rename, no cambia comportamiento" | A rename invalidates every sentence that used the old name. Renames are the worst case. |
 | "Declaro los archivos por encima, ya se verá" | Vague declarations make the matrix useless and the guarantee fake. |
 | "Marco todo como dependiente, por si acaso" | That serializes the plan and wastes the extra agents. Only real dependencies. |
 | "Esta tarea es grande pero la entiendo" | The agent picking it up in a fresh context doesn't. Split it. |
@@ -258,6 +343,10 @@ docs/plans/<slug>/
 
 ## Red Flags
 
+- A behavior reversal planned with no assertion inventory
+- An inventory built only from a symbol search, so prose assertions went unseen
+- A surface listed in the inventory with no task that owns it
+- Documentation deferred to "al final" instead of being a task with criteria
 - A file appearing in two tasks of the same wave
 - An "archivos" section that says things like "los de auth"
 - Any task without testable acceptance criteria
@@ -281,6 +370,12 @@ docs/plans/<slug>/
 - [ ] With several specs selected: the file matrix spans all of them, and cross-plan
       dependencies are written qualified (`<plan>/T-00N`)
 - [ ] An approved spec existed before planning started
+- [ ] For any change that reverses existing behavior, the assertion inventory was built
+      and written into `plan.md`
+- [ ] Every surface in the inventory has an owning task
+- [ ] The inventory was built by searching for the old name, the old concept in prose,
+      and the inverse claim — not only by symbol
+- [ ] Templates, examples, help text and the plan's own artifacts were checked
 - [ ] Every task declares its files as concrete paths
 - [ ] The file → tasks matrix is written into `plan.md`
 - [ ] **No file appears in two tasks of the same wave**

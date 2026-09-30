@@ -97,6 +97,10 @@ Eres un ingeniero senior haciendo code review. NO escribiste este código.
    ¿Dependencias en la dirección correcta? ¿Sobre-ingeniería?
 5. LEGIBILIDAD — ¿otro ingeniero lo entiende sin explicación? ¿Nombres claros?
    ¿Anidamiento razonable?
+6. AFIRMACIONES OBSOLETAS — si este cambio revierte o redefine algo (un nombre, un
+   default, una regla, una dependencia), ¿queda texto que siga afirmando lo anterior?
+   Revisa documentación, plantillas, ejemplos, mensajes de ayuda y error, y los
+   comentarios que el diff toca. Cita el archivo y la frase.
 
 ## Formato de salida OBLIGATORIO
 
@@ -141,6 +145,16 @@ implemented. Stop and escalate to the user.
 
 **BLOCKED** → status `blocked`, notify, stop. This is a human decision.
 
+#### Stale assertions are a planning defect
+
+When the review finds text still asserting the old behavior, fixing it is not enough. The
+surface should have been in the plan's assertion inventory (`breakdown` Step 2b) and was
+not, which means the same class of defect is probably still hiding elsewhere in this plan.
+
+So: report it as a planning gap, not just a change request. Say which surfaces were
+missed and re-run the inventory over the rest of the plan before continuing. One surface
+found in review usually means two more nobody looked for.
+
 ### 5. Reviewing as a subagent
 
 When the reviewer is `subagente`, spawn a Task-tool agent with the same prompt and an explicit
@@ -155,6 +169,7 @@ Context contamination is what makes self-review worthless.
 | Blocks | Doesn't block |
 |---|---|
 | An acceptance criterion isn't met | Naming you'd have done differently |
+| Text still asserting behavior this change reversed | A doc you'd have worded differently |
 | A criterion has no test | A missing comment |
 | Tests would pass on an empty implementation | Formatting the linter doesn't flag |
 | A test was skipped, weakened or deleted | A refactor you'd prefer |
@@ -195,6 +210,9 @@ approves untested criteria makes the whole gate theater.
 - [ ] The review prompt contained the task criteria, the full diff and real test output
 - [ ] A structured verdict was produced and parsed
 - [ ] Every acceptance criterion was checked against a specific test
+- [ ] For a behavior reversal: documentation, templates, examples and messages were
+      checked for text that still asserts the old behavior
+- [ ] Any stale surface found was reported as a planning gap, not only as a fix
 - [ ] Blockers are correctness/tests/security/design issues, not preferences
 - [ ] The verdict was acted on: done, back to the implementer, or escalated
 - [ ] The review report is saved under `docs/plans/<slug>/reviews/`

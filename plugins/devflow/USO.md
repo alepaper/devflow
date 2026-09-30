@@ -150,6 +150,22 @@ Si eliges varios, la matriz de archivos abarca todos: dos planes distintos puede
 en un archivo igual que dos tareas del mismo plan, y las dependencias entre planes se
 escriben calificadas (`portal-ds/T-003`).
 
+Si el cambio revierte algo que ya existe — un nombre, un default, una regla, una
+dependencia — primero inventaría **qué afirma hoy eso que va a cambiar**: documentación,
+plantillas, ejemplos, mensajes de error, tests que codifican la regla vieja. Cada
+superficie recibe una tarea dueña.
+
+Ese paso existe porque la matriz de archivos responde "¿estas tareas chocan?", no "¿está
+completa la lista?". Sin él, el texto obsoleto aparece en revisión.
+
+Si el cambio revierte algo que ya existe — un nombre, un default, una regla, una
+dependencia — primero inventaría **qué afirma hoy eso que va a cambiar**: documentación,
+plantillas, ejemplos, mensajes de error, tests que codifican la regla vieja. Cada
+superficie recibe una tarea dueña.
+
+Ese paso existe porque la matriz responde "¿estas tareas chocan?", no "¿está completa la
+lista?". Sin él, el texto obsoleto aparece en revisión, que es el lugar caro.
+
 Lee el spec, reconoce el código, detecta tus comandos reales de test y build, y arma la
 **matriz archivo → tareas**. Ahí es donde aparece lo interesante:
 
@@ -274,8 +290,9 @@ deseado en una frase ahora mismo, no lo está. Es la hora más barata del proyec
 **Montar más agentes que el ancho de la ola.** Los sobrantes se quedan esperando y
 aumentan el riesgo de conflicto. El número que te da `/breakdown` es el útil.
 
-**Aprobar el plan sin mirar la matriz.** Es lo único que garantiza que el paralelismo es
-seguro, y es rápido de revisar.
+**Aprobar el plan sin mirar la matriz ni el inventario.** La matriz es lo que garantiza
+que el paralelismo no choque; el inventario es lo que garantiza que la lista de archivos
+esté completa. Las dos son rápidas de revisar y responden preguntas distintas.
 
 **Pedirle a Claude que revise su propio código.** No lo va a hacer, y si insistes vas a
 obtener una revisión sin valor: comparte los puntos ciegos que produjeron el código.

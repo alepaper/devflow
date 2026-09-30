@@ -36,6 +36,15 @@ tarea propia, aguas arriba de quienes lo consumen.
 
 - `T-001` define `Usuario` y el esquema de sesión → lo consumen T-002, T-003
 
+## Inventario de afirmaciones
+Obligatorio cuando el cambio revierte o redefine algo. Qué se afirma hoy que va a dejar
+de ser cierto, dónde se afirma, y qué tarea lo actualiza. Toda fila necesita tarea: una
+superficie sin dueño es un plan incompleto, no una tarea de documentación para después.
+
+| Afirmación que cambia | Dónde se afirma hoy | Tarea |
+|---|---|---|
+| | | |
+
 ## Matriz de archivos
 La evidencia de que el plan es seguro en paralelo. **Ninguna fila puede tener dos tareas
 de la misma ola.** Si la tiene, se parte el archivo, se extrae una tarea aguas arriba, o

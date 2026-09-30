@@ -1,10 +1,16 @@
 {
   "name": "devflow",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Flujo de desarrollo asistido por agentes, sin dependencias: requerimiento validado en tres capas, plan con archivos exclusivos, y autopilot con TDD y revisión cruzada.",
   "author": {
     "name": "Alepaper"
   },
   "license": "MIT",
-  "keywords": ["tdd", "agents", "planning", "code-review", "linear"]
+  "keywords": [
+    "tdd",
+    "agents",
+    "planning",
+    "code-review",
+    "linear"
+  ]
 }

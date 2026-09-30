@@ -38,13 +38,6 @@ claude plugin install devflow@alepaper
 `alepaper/devflow` es el repositorio; `alepaper` es el nombre del marketplace declarado
 en `marketplace.json`. El id de instalación es siempre `<plugin>@<marketplace>`.
 
-Para actualizar a una versión nueva:
-
-```bash
-claude plugin marketplace update alepaper
-claude plugin install devflow@alepaper
-```
-
 Por defecto la instalación es de ámbito `user` y aplica a todos tus proyectos. Para
 fijarlo a un repositorio concreto:
 
@@ -116,6 +109,80 @@ ese nombre.
 
 ---
 
+## Actualización
+
+### Instalado desde GitHub
+
+Primero sube los cambios al repositorio, **incluyendo el campo `version` de
+`plugins/devflow/.claude-plugin/plugin.json`**. Luego:
+
+```bash
+claude plugin marketplace update alepaper   # refresca el catálogo
+claude plugin update devflow@alepaper       # reinstala la versión nueva
+```
+
+Dentro de una sesión activa, aplica el cambio sin reiniciar:
+
+```
+/reload-plugins
+```
+
+**`claude plugin update` compara el string `version`.** Si subes archivos nuevos sin
+subir la versión, responde `already at the latest version` y sigue sirviendo el caché
+anterior. Es la causa más común de "actualicé y no cambió nada".
+
+Verifica contra la versión, no contra el mensaje de éxito:
+
+```bash
+claude plugin details devflow      # versión esperada + Skills (8)
+```
+
+### Actualización automática
+
+Los marketplaces de terceros traen la auto-actualización desactivada. Se enciende con el
+toggle *Enable auto-update* en `/plugin` → Marketplaces, o declarándolo en
+`~/.claude/settings.json`:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "alepaper": {
+      "source": { "source": "github", "repo": "alepaper/devflow" },
+      "autoUpdate": true
+    }
+  }
+}
+```
+
+Hay reportes de que `autoUpdate` refresca el catálogo pero no reinstala los plugins. Si
+lo activas, confirma con `claude plugin details devflow` en vez de asumir que estás al
+día.
+
+### Instalado como marketplace local
+
+Claude Code lee los archivos directamente del directorio clonado, así que basta con traer
+los cambios y recargar:
+
+```bash
+git pull
+```
+
+```
+/reload-plugins
+```
+
+### Instalado como skills independientes
+
+Vuelve a copiar. `install.sh` reemplaza cada directorio de skill, así que un rename como
+`tasks` → `breakdown` deja el directorio viejo atrás:
+
+```bash
+git pull && ./install.sh
+rm -rf ~/.claude/skills/tasks     # limpiar skills renombradas o eliminadas
+```
+
+---
+
 ## Desinstalación
 
 Desinstalar el plugin y conservar el marketplace registrado:
@@ -153,7 +220,7 @@ claude plugin disable devflow@alepaper
 |---|---|
 | `/spec` | Entrevista una pregunta a la vez hasta que el requerimiento no tenga ambigüedad. Valida el borrador en tres capas antes de pedir aprobación. Produce `spec.md`. |
 | `/spec-check` | Envía el spec a un agente distinto del que lo escribió. Detecta ambigüedades, criterios no falsables, soluciones disfrazadas de requerimiento, contradicciones y dependencias no confirmadas. Veredicto: `LISTO`, `HUECOS` o `BLOQUEADO`. |
-| `/breakdown` | Parte el spec en tareas verticales. Si hay varios specs, los lista para que elijas uno, varios o todos. Construye la matriz archivo → tareas y convierte cada colisión en dependencia. Produce `plan.md` y un archivo por tarea. |
+| `/breakdown` | Parte el spec en tareas verticales. Si hay varios specs, los lista para que elijas uno, varios o todos. Inventaría qué documentos y plantillas afirman hoy lo que va a cambiar, construye la matriz archivo → tareas y convierte cada colisión en dependencia. Produce `plan.md` y un archivo por tarea. |
 | `/autopilot` | Reparte tareas a N agentes, con TDD obligatorio, revisión por un agente distinto y un commit por tarea. Argumentos: `dev`, `test`, `review`, `task T-00N`, `all`. |
 | `/cross-review` | Revisa código con un agente distinto del que lo escribió. Veredicto: `APPROVED`, `CHANGES_REQUESTED` o `BLOCKED`. |
 | `/progress` | Estado del plan: hecho, en vuelo, listo, bloqueado, y la próxima decisión pendiente. Solo lectura. |
@@ -386,6 +453,24 @@ escriben. Linear es el espejo para lectura humana.
 
 ## Modelo de ejecución
 
+### Inventario de afirmaciones
+
+La matriz garantiza que dos agentes no choquen. No garantiza que el plan cubra todo lo
+que el cambio invalida: son dos preguntas distintas.
+
+Antes de repartir archivos, `/breakdown` inventaría qué afirma hoy el comportamiento que
+va a cambiar — documentación, plantillas, ejemplos, mensajes de ayuda y error, tests que
+codifican la regla vieja, y los propios artefactos del plan. Cada superficie recibe una
+tarea dueña.
+
+Aplica a cualquier reversión: un default que cambia, una regla que se invierte, un nombre
+que se renombra, una dependencia que se elimina. Los renames y las eliminaciones son los
+peores casos, porque dejan atrás cada frase que mencionaba lo anterior y esas frases se
+leen como vigentes.
+
+Sin este paso, el texto obsoleto aparece en revisión, que es el lugar caro para
+encontrarlo.
+
 ### Exclusividad de archivos
 
 > Dos tareas nunca pueden necesitar el mismo archivo. Si lo necesitan, eso es una
@@ -457,5 +542,6 @@ devflow/                              # raíz del marketplace
 - **Despliegue fuera de alcance.** El flujo termina en código revisado y commiteado.
 - **Validación del grafo manual.** `/breakdown` verifica ciclos y dependencias inexistentes
   con un checklist, no con una herramienta.
-- **`/autopilot` sin validar de punta a punta** contra un repositorio real con revisor
-  externo. Arranca con `/autopilot task T-001` y un agente antes de escalar.
+- **Paralelismo con worktrees poco ejercitado.** El ciclo completo se ha corrido de punta
+  a punta, pero con pocos agentes. En un proyecto nuevo, arranca con
+  `/autopilot task T-001` y un agente antes de escalar.
