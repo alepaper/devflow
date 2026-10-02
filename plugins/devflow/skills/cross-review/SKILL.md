@@ -54,12 +54,23 @@ See `references/external-reviewers.md` for setup of codex and others.
 ## The Process
 
 ### 1. Assemble the evidence
+**Legacy layouts.** Before anything else, resolve the plan directory. Some projects were
+created with `breakdown/` instead of `tasks/`, or `tasks.md` / `breakdown.md` instead of
+`plan.md` — two over-broad command renames dragged artifact paths along with them.
+
+Read `tasks/` first, falling back to `breakdown/`; `plan.md` first, falling back to
+`tasks.md` then `breakdown.md`. If a legacy name is found, **migrate it with `git mv`
+before working**, in its own commit, and tell the user in one line. If both the canonical
+and the legacy name exist, stop and ask — merging them blindly can lose task files.
+
+Procedure: `../breakdown/references/plan-layout.md`.
+
 
 The reviewer gets no conversation history — everything it needs must be in the prompt:
 
 ```bash
 git diff <base>..HEAD -- <archivos de la tarea>    # el cambio
-cat docs/plans/<slug>/breakdown/T-003.md               # criterios de aceptación
+cat docs/plans/<slug>/tasks/T-003.md               # criterios de aceptación
 <comando de test>                                  # salida real de los tests
 ```
 

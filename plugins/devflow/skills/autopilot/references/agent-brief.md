@@ -2,39 +2,40 @@
 
 El orquestador asigna la tarea **por nombre**. El agente nunca elige.
 
----
-
-## Brief (subagente en la misma sesión — el caso normal)
-
 ```
 Eres el agente <A1>. Tu tarea asignada es <T-003> del plan <slug>.
 No tomes ninguna otra tarea. Si terminas, reporta y para.
 
-1. Lee docs/plans/<slug>/breakdown/T-003.md completo.
+1. Carga la skill `tdd` y síguela. Es obligatoria. El resumen del punto 4 es un
+   recordatorio, no un reemplazo: las verificaciones que importan — que el RED falló
+   por la razón correcta, que el test fallaría contra una implementación vacía, que
+   nada se debilitó para llegar a verde — están en la skill, no aquí.
 
-2. Cambia su frontmatter a `estado: in_progress` y agrega a la bitácora:
+2. Lee docs/plans/<slug>/tasks/T-003.md completo.
+
+3. Cambia su frontmatter a `estado: in_progress` y agrega a la bitácora:
    `- <fecha ISO> A1 tomó la tarea`
 
-3. Implementa con TDD estricto:
+4. Implementa con TDD estricto:
    RED    escribe los tests listados en la tarea, córrelos, verifica que FALLAN
           y que fallan por la razón correcta
    GREEN  el código mínimo para pasarlos
    REFACTOR con los tests en verde
 
-4. Verifica: <comando de test completo> y <comando de build>.
+5. Verifica: <comando de test completo> y <comando de build>.
    La suite completa, no solo tus tests.
 
-5. Commitea SOLO los archivos que la tarea declara. Nunca `git add -A`.
+6. Commitea SOLO los archivos que la tarea declara. Nunca `git add -A`.
    Mensaje: "T-003: <título>" + qué hiciste + "Plan: <slug> · Tarea: T-003"
 
-6. Marca `estado: in_review` en tu archivo de tarea y agrega a la bitácora
+7. Marca `estado: in_review` en tu archivo de tarea y agrega a la bitácora
    los tests que pasaron y el sha del commit.
 
-7. NO apruebes tu propio trabajo. Termina aquí y reporta.
+8. NO apruebes tu propio trabajo. Termina aquí y reporta.
 
 Restricciones duras:
 - Solo edita los archivos que TU tarea declara. Ningún otro.
-- Solo escribe en docs/plans/<slug>/breakdown/T-003.md. Ningún otro archivo del plan.
+- Solo escribe en docs/plans/<slug>/tasks/T-003.md. Ningún otro archivo del plan.
 - Si necesitas tocar un archivo no declarado, PARA y reporta: el plan tiene una
   colisión que la matriz no vio, y eso se arregla en el plan, no improvisando.
 - Si un test no pasa y no es obvio por qué, PARA y reporta.
@@ -47,47 +48,11 @@ agente escribe un archivo distinto, no hay nada que contender.
 
 ---
 
-## Worktrees (paralelismo real, terminales separadas)
+## Worktrees
 
-Cuando quieras agentes de verdad independientes, o mezclar claude-code con codex
-escribiendo código al mismo tiempo.
-
-```bash
-git worktree add ../$(basename $PWD)-A2 -b devflow/<slug>/A2
-```
-
-Aquí **no hay orquestador automático**: tú repartes. Abre cada terminal y dale a cada
-agente su tarea por nombre, del conjunto listo. La regla de archivos exclusivos es lo que
-hace que esto sea seguro sin coordinación entre terminales.
-
-Los archivos de tarea viven en el repo principal. Desde un worktree se leen y escriben por
-ruta relativa normal si `docs/plans/` está commiteado — pero entonces cada worktree tiene
-su propia copia y se desincronizan. Dos opciones:
-
-- **Recomendada:** el agente del worktree reporta al terminar, y el orquestador (tú, o el
-  agente del repo principal) actualiza el archivo de tarea. Una sola copia cambia.
-- Alternativa: cada agente edita el archivo de tarea en el repo principal por ruta
-  absoluta, no en su worktree.
-
-### Orden de merge
-
-Las ramas se integran **en orden de dependencia**, no de terminación:
-
-```bash
-git checkout main
-git merge --no-ff devflow/<slug>/A2      # solo tras APPROVED
-<comando de test>                         # la suite debe quedar verde tras cada merge
-```
-
-Si un merge rompe la suite, el arreglo es una tarea nueva, no un parche silencioso.
-
-### Limpieza
-
-```bash
-git worktree remove ../<repo>-A2 && git branch -d devflow/<slug>/A2 && git worktree prune
-```
-
----
+Dos o más agentes en paralelo significa dos o más worktrees, uno por tarea. El montaje,
+el orden de merge, la preparación con `cmd_setup` y qué hacer ante un conflicto están en
+**[worktrees.md](worktrees.md)**.
 
 ## Reglas de colisión
 

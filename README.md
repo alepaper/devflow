@@ -19,6 +19,7 @@ runtime adicional.
 |---|---|
 | Claude Code | Obligatorio |
 | git | Obligatorio — `/autopilot` hace un commit por tarea |
+| `pnpm` / `uv` | Recomendados cuando el proyecto aún no tiene lockfile. Si no están, se usa `npm` / `pip`. Sin ninguno de los dos para una pila en uso, `/breakdown` para y pide instalarlo |
 | CLI de revisión externo (`codex`, `gemini`) | Opcional. Sin él, `/cross-review` y `/spec-check` usan un subagente de Claude con contexto limpio |
 | Cuenta de [Linear](https://linear.app/) | Opcional. Sin ella, las tareas viven en archivos |
 
@@ -349,9 +350,10 @@ propone, tú decides.
 Luego muestra las olas y el número de agentes que sirve de verdad:
 
 ```
-Ola 1: T-001                 → 1 agente
-Ola 2: T-002, T-003          → 2 agentes
-Ola 3: T-004                 → 1 agente
+Ola 1: T-000                 → 1 agente   (base del proyecto, siempre sola)
+Ola 2: T-001                 → 1 agente
+Ola 3: T-002, T-003          → 2 agentes
+Ola 4: T-004                 → 1 agente
 
 Agentes recomendados: 2
 ```
@@ -397,7 +399,7 @@ y cuál es la próxima decisión que te toca.
 
 [Linear](https://linear.app/) sirve como tablero visual de las tareas del plan. Es
 opcional: por defecto las tareas viven en archivos markdown dentro de
-`docs/plans/<plan>/breakdown/`, y el flujo funciona igual sin cuenta.
+`docs/plans/<plan>/tasks/`, y el flujo funciona igual sin cuenta.
 
 ### Configuración
 
@@ -471,6 +473,63 @@ leen como vigentes.
 Sin este paso, el texto obsoleto aparece en revisión, que es el lugar caro para
 encontrarlo.
 
+### T-000, la base del proyecto
+
+Todo plan arranca con T-000 y todas las demás tareas dependen de ella. Verifica y
+completa el cimiento versionado: repositorio git con al menos un commit, `.gitignore` que
+cubra dependencias y secretos, `.env.example` con todas las variables que lee la suite,
+manifiestos con sus lockfiles, configuración de linter y runner, y un test trivial que
+pase.
+
+Lo no versionado — `node_modules`, `.venv`, el `.env` real — no puede ser producto de una
+tarea: está ignorado, así que no queda nada commiteado. Eso es `cmd_setup`, y corre en
+cada worktree. El trabajo de T-000 es **hacer que `cmd_setup` funcione**.
+
+Cierra con un criterio que subsume a los demás:
+
+```bash
+git clone <repo> /tmp/verificacion-base && cd /tmp/verificacion-base
+<cmd_setup> && <cmd_test> && <cmd_build>
+```
+
+Un clon limpio es lo que es un worktree. Si esto pasa, todos funcionarán; si no, ninguno,
+y lo depurarías N veces en paralelo en vez de una.
+
+### Worktrees e integración
+
+Con **dos o más** agentes, cada tarea corre en su propio `git worktree`. Con un solo
+agente no hay worktrees: se trabaja directo sobre la rama de integración.
+
+La razón no es evitar que se pisen archivos — eso ya lo cubre la matriz. Es que sin
+aislamiento **la compuerta de suite verde del TDD no se puede hacer cumplir**: cuando un
+agente corre la suite completa antes de commitear y está roja por el trabajo a medias de
+otro, no puede distinguir esa falla de una regresión propia. Le queda esperar —
+serializando, así que el paralelismo se pierde igual — o commitear decidiendo que "esos
+fallos no son míos", que convierte la compuerta en teatro.
+
+Cada tarea aprobada se integra de inmediato en la rama `devflow/<plan>`, en orden de
+dependencia y con la suite completa verde después de cada merge. Al terminar el plan, esa
+rama se mergea una sola vez a la rama base.
+
+Un conflicto de merge significa que el plan estaba mal: dos tareas compartían un archivo
+que la matriz decía que no. Se escala como defecto de planeación, no se resuelve a mano.
+
+Cada worktree se elimina apenas su tarea se integra, o si queda bloqueada: el peso no es
+el checkout sino las dependencias que `cmd_setup` instaló dentro. Al cerrar el plan,
+`git worktree list` debe mostrar solo el repositorio principal. Los huérfanos de sesiones
+interrumpidas los reporta `/progress` y los limpia `/autopilot` antes de la siguiente ola.
+
+Un merge limpio con la suite roja es un conflicto **semántico** — dos tareas que no
+comparten archivo pero cambian el mismo comportamiento. La exclusividad de archivos no
+previene eso, y también es condición de parada.
+
+Requiere `cmd_setup` en `plan.md`: un worktree nuevo no tiene `node_modules` ni `.env`, y
+sin prepararlo la suite no corre. Su costo se multiplica por el ancho de la ola, así que
+el gestor importa: `pnpm` y `uv` mantienen un almacén compartido y enlazan duro, de modo
+que N worktrees cuestan ~1 copia en disco; con `npm` o `pip` son N copias. El gestor lo
+decide el lockfile del proyecto, no la preferencia — cambiarlo altera la resolución de
+dependencias.
+
 ### Exclusividad de archivos
 
 > Dos tareas nunca pueden necesitar el mismo archivo. Si lo necesitan, eso es una
@@ -491,6 +550,8 @@ número recomendado de agentes, con tope de 4.
    contexto limpio o, preferiblemente, otro modelo.
 3. **Nadie elige su tarea.** El orquestador reparte por nombre. El auto-servicio permite
    que dos agentes lean el tablero en el mismo instante y tomen la misma tarea.
+4. **Los agentes en paralelo corren en worktrees separados.** Un worktree por tarea,
+   creados desde la rama de integración al empezar la ola.
 
 ---
 
@@ -502,6 +563,7 @@ docs/plans/<plan>/
 ├── spec-check.md    # veredicto del validador externo
 ├── plan.md          # decisiones, matriz de archivos, olas, configuración
 ├── tasks/
+│   ├── T-000.md     # base del proyecto
 │   ├── T-001.md     # estado en frontmatter + bitácora
 │   └── T-002.md
 └── reviews/         # prompts y veredictos de cada revisión
@@ -510,6 +572,13 @@ docs/plans/<plan>/
 Cada archivo de tarea tiene un único escritor: el agente asignado a esa tarea. El campo
 `estado` de su frontmatter es la fuente de verdad.
 
+**Compatibilidad con proyectos viejos.** Algunos planes creados con versiones anteriores
+tienen `breakdown/` en vez de `tasks/`, o `tasks.md` / `breakdown.md` en vez de
+`plan.md` — dos renombres de comando arrastraron rutas de artefactos por error. Las
+skills los leen igual, y la primera que escriba en el plan los renombra al layout
+canónico en un commit aparte. `/progress` lo reporta sin tocar nada, porque es de solo
+lectura.
+
 Toda la configuración vive en el frontmatter de `plan.md`, escrito una vez por `/breakdown`:
 
 ```yaml
@@ -517,6 +586,8 @@ tracker: archivos                               # archivos | linear
 cmd_test: npm test
 cmd_build: npm run build
 cmd_lint: npm run lint
+cmd_setup: npm ci                               # preparar un worktree nuevo
+worktree_files: [.env]                          # ignorados que la suite necesita
 reviewer: codex exec --skip-git-repo-check -    # o: subagente
 webhook:                                        # opcional, Slack/Discord
 ```
@@ -537,6 +608,10 @@ devflow/                              # raíz del marketplace
 
 ---
 
+## Historial de versiones
+
+Decisiones y cambios por versión: [CHANGELOG.md](CHANGELOG.md).
+
 ## Limitaciones conocidas
 
 - **Despliegue fuera de alcance.** El flujo termina en código revisado y commiteado.
@@ -544,4 +619,6 @@ devflow/                              # raíz del marketplace
   con un checklist, no con una herramienta.
 - **Paralelismo con worktrees poco ejercitado.** El ciclo completo se ha corrido de punta
   a punta, pero con pocos agentes. En un proyecto nuevo, arranca con
-  `/autopilot task T-001` y un agente antes de escalar.
+  `/autopilot task T-000` y un agente antes de escalar.
+- **Conflictos semánticos fuera del alcance de la matriz.** Dos tareas que no comparten
+  archivo pueden romper el mismo comportamiento. Se detecta en el merge, no al planear.

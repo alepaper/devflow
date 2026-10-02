@@ -106,12 +106,122 @@ If the user picks several and you can't build a clean combined matrix, plan them
 time and say plainly that running their autopilots concurrently isn't safe.
 
 ### Step 1 — Read-only reconnaissance
+**Legacy layouts.** Before anything else, resolve the plan directory. Some projects were
+created with `breakdown/` instead of `tasks/`, or `tasks.md` / `breakdown.md` instead of
+`plan.md` — two over-broad command renames dragged artifact paths along with them.
+
+Read `tasks/` first, falling back to `breakdown/`; `plan.md` first, falling back to
+`tasks.md` then `breakdown.md`. If a legacy name is found, **migrate it with `git mv`
+before working**, in its own commit, and tell the user in one line. If both the canonical
+and the legacy name exist, stop and ask — merging them blindly can lose task files.
+
+Procedure: `references/plan-layout.md`.
+
 
 Read the spec and the code it touches. Note existing patterns, the test setup, and **the
-real commands**: how tests run, how the build runs, how lint runs. Record them in
+real commands**: how tests run, how the build runs, how lint runs, and **how a fresh
+checkout is prepared** (`npm ci`, `uv sync`, `bundle install`). That last one is
+`cmd_setup`, and `/autopilot` needs it to make a new worktree runnable — a worktree has
+no `node_modules` and no `.env`. Note which ignored files the suite needs too. Record them in
 `plan.md` frontmatter — the autopilot will need them and there is no config file anymore.
 
 Write no code during planning.
+
+### Step 1b — Emit T-000, the baseline task
+
+**Every plan starts with T-000, and every otherwise-dependency-free task depends on it.**
+Parallel work can't begin before the project has a working baseline, and a worktree that
+can't run the suite is worse than no worktree — it produces red results that mean nothing.
+
+In a mature repository T-000 is mostly verification and closes quickly. Emit it anyway:
+the cost of confirming is minutes, and the cost of discovering a missing `.env.example`
+with three worktrees already running is all three.
+
+#### Two categories, and they behave oppositely
+
+**Versioned — T-000 creates and commits these. Every worktree gets them for free:**
+
+| Artefacto | Qué verificar |
+|---|---|
+| Repositorio git | Inicializado y **con al menos un commit** — `git worktree add` falla en un repo sin commits |
+| `.gitignore` | Ignora dependencias (`node_modules`, `.venv`, `vendor`), artefactos de build, secretos (`.env`), y archivos de editor y sistema |
+| `.env.example` | **Toda** variable que el código o la suite lee, con valores de ejemplo no secretos |
+| Manifiestos y lockfiles | `package.json` + `package-lock.json`, `pyproject.toml` + `uv.lock`, etc. El lockfile se commitea |
+| Configuración | Linter, formateador, `tsconfig`/`pyproject`, runner de tests |
+| Un test trivial que pasa | Prueba que el runner está realmente conectado |
+
+**No versionado — `cmd_setup` los materializa, en cada worktree, cada vez:**
+
+`node_modules`, `.venv`, `vendor`, el `.env` real copiado de `.env.example`, cachés y
+artefactos de build.
+
+Estos **no pueden ser el producto de una tarea**: están en `.gitignore`, así que no queda
+nada commiteado y el siguiente worktree no los tendría. El trabajo de T-000 no es
+instalarlos — es **hacer que `cmd_setup` exista y funcione**.
+
+#### The acceptance criterion that actually proves it
+
+One check subsumes every item above:
+
+```bash
+git clone <repo> /tmp/verificacion-base && cd /tmp/verificacion-base
+<cmd_setup>
+<cmd_test>      # verde
+<cmd_build>     # sin errores
+```
+
+A fresh clone is exactly what a worktree is, minus the shared git directory. If this
+passes, every worktree will work. If it doesn't, none will, and you'll debug it N times
+in parallel instead of once.
+
+Write it as T-000's criteria verbatim, with the real commands filled in.
+
+#### Why `.gitignore` is load-bearing here
+
+It isn't hygiene. If `node_modules` or `.venv` aren't ignored, they get committed, and
+then every worktree carries a copy that conflicts on merge — reintroducing precisely the
+collision worktrees exist to prevent. Check it before anything else.
+
+Same for `.env`: committed secrets are the one defect in this list you can't fix by
+deleting the file later.
+
+#### Pick `cmd_setup` from the lockfile, not from preference
+
+`cmd_setup` runs once per worktree, so its cost multiplies by the width of the wave.
+
+**The project's lockfile decides the package manager.** Switching managers on an existing
+project changes dependency resolution — `pnpm`'s non-flat `node_modules` breaks packages
+that rely on npm's hoisting. Preference only applies when there's no lockfile yet, which
+means a new project T-000 is bootstrapping.
+
+```bash
+command -v pnpm >/dev/null 2>&1 && echo pnpm || echo npm
+command -v uv   >/dev/null 2>&1 && echo uv   || echo pip
+```
+
+Prefer `pnpm` and `uv` when the choice is open. Both keep a shared content-addressed
+store and hard-link into `node_modules` / `.venv`, so N worktrees cost roughly one copy
+on disk instead of N, and every install after the first is near-instant. With `npm`, four
+worktrees are four complete dependency trees.
+
+`uv pip install -r requirements.txt` is the one safe swap on an existing project: same
+format, same resolution, much faster.
+
+Always use the frozen form — `npm ci`, `pnpm install --frozen-lockfile`, `uv sync
+--frozen`. A `cmd_setup` that updates the lockfile does it in every worktree at once and
+guarantees a merge conflict in a file no task declared.
+
+If neither manager exists for a stack the project uses, **stop and tell the user what to
+install**. There's nothing to work around: without it no worktree can be prepared and the
+suite can't run.
+
+Full tables and caching details: `references/package-managers.md`.
+
+#### Dependencies belong to T-000 or to one task
+
+Adding a dependency touches the manifest and the lockfile. Two tasks doing that in
+parallel conflict on the lockfile every time. Known dependencies go in T-000; a
+dependency discovered later belongs to exactly one task, and that task owns both files.
 
 ### Step 2 — Slice vertically
 
@@ -249,13 +359,17 @@ file-based dependency can often be removed later by splitting the file.
 
 ### Step 5 — Compute the waves by hand
 
-Wave 1 = every task with no dependencies. Wave 2 = every task whose dependencies are all
-in wave 1. And so on.
+Wave 1 is T-000 alone. Everything else depends on it, directly or transitively, so the
+first wave is always serial. That's correct: there is nothing to parallelize before the
+baseline runs.
+
+Wave 2 = every task whose only dependency is T-000. And so on.
 
 ```
-Ola 1: T-001                    → 1 agente
-Ola 2: T-002, T-003             → 2 agentes
-Ola 3: T-004                    → 1 agente
+Ola 1: T-000                    → 1 agente   (base, siempre sola)
+Ola 2: T-001                    → 1 agente
+Ola 3: T-002, T-003             → 2 agentes
+Ola 4: T-004                    → 1 agente
 ```
 
 **Verify the graph by hand before writing it down.** There is no tool to catch these for
@@ -276,7 +390,7 @@ running it with three just means two idle agents.
 
 ### Step 6 — Write one file per task
 
-`docs/plans/<slug>/breakdown/T-00N.md`, using `references/task-format.md`.
+`docs/plans/<slug>/tasks/T-00N.md`, using `references/task-format.md`.
 
 **The task file is the state.** Its `estado` field in frontmatter is the truth. One agent
 owns one task file and is its only writer. There is no `state.json`, no `log.md`, no
@@ -329,6 +443,10 @@ docs/plans/<slug>/
 | Rationalization | Reality |
 |---|---|
 | "Comparten archivo pero editan partes distintas" | Two agents writing one file is a conflict regardless of which lines. It's a dependency. |
+| "La carpeta se llama `breakdown/`, escribo ahí y ya" | Then the project stays split between two layouts and the next skill resolves differently. Migrate once. |
+| "El repo ya existe, T-000 sobra" | Verifying costs minutes. A missing `.env.example` found with three worktrees running costs all three. |
+| "Pongo 'instalar dependencias' como tarea" | It's gitignored, so nothing gets committed and the next worktree still lacks it. That's `cmd_setup`. |
+| "Cada tarea instala lo que necesite" | Two tasks touching the lockfile conflict every time. Dependencies go in T-000 or in exactly one task. |
 | "Hago la matriz mental, no la escribo" | The matrix is where you *find* the collisions. Unwritten, you'll miss one. |
 | "La matriz ya cubre qué archivos se tocan" | It checks the files you listed. It can't tell you the list is short. |
 | "La documentación la actualizo al final" | "Al final" is review, and review is the expensive place to find stale text. |
@@ -343,6 +461,13 @@ docs/plans/<slug>/
 
 ## Red Flags
 
+- Writing into a `breakdown/` directory instead of migrating it to `tasks/`
+- Migrating while a wave is in flight — agents hold resolved paths and live worktrees
+- Merging `tasks/` and `breakdown/` automatically when both exist
+- A plan with no T-000
+- A task whose output is `node_modules` or `.venv` — those are `cmd_setup`, not deliverables
+- Two tasks that both modify a dependency manifest or lockfile
+- T-000 marked done without running the fresh-clone check
 - A behavior reversal planned with no assertion inventory
 - An inventory built only from a symbol search, so prose assertions went unseen
 - A surface listed in the inventory with no task that owns it
@@ -369,6 +494,17 @@ docs/plans/<slug>/
 - [ ] Any existing plan with open tasks was confirmed before being touched
 - [ ] With several specs selected: the file matrix spans all of them, and cross-plan
       dependencies are written qualified (`<plan>/T-00N`)
+- [ ] T-000 exists and every otherwise-dependency-free task depends on it
+- [ ] T-000's criteria include the fresh-clone check with the project's real commands
+- [ ] `cmd_setup` matches the project's existing lockfile, and uses the frozen form
+- [ ] If no package manager is available for a stack in use, the user was told to install
+      one instead of being worked around
+- [ ] `.gitignore` covers dependencies, build artifacts and secrets
+- [ ] `.env.example` lists every variable the suite reads
+- [ ] No task other than T-000 adds dependencies, unless exactly one task owns the
+      manifest and the lockfile together
+- [ ] A legacy plan layout was migrated to `tasks/` + `plan.md` before planning, in its
+      own commit, with internal references corrected
 - [ ] An approved spec existed before planning started
 - [ ] For any change that reverses existing behavior, the assertion inventory was built
       and written into `plan.md`

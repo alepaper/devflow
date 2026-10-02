@@ -1,6 +1,6 @@
 # Plantilla de plan
 
-Guarda esto en `docs/plans/<slug>/breakdown.md`.
+Guarda esto en `docs/plans/<slug>/plan.md`.
 
 ```markdown
 ---
@@ -13,6 +13,16 @@ agentes_recomendados: 2
 cmd_test: npm test
 cmd_build: npm run build
 cmd_lint: npm run lint
+# preparar un worktree recién creado: sin esto la suite no corre ahí.
+# Lo decide el lockfile del proyecto, no la preferencia:
+#   pnpm-lock.yaml    -> pnpm install --frozen-lockfile
+#   package-lock.json -> npm ci --prefer-offline
+#   uv.lock           -> uv sync --frozen
+#   requirements.txt  -> uv pip install -r requirements.txt (o pip)
+cmd_setup: pnpm install --frozen-lockfile
+# archivos ignorados que la suite necesita y hay que copiar a cada worktree
+worktree_files: [.env]
+rama_integracion: devflow/<slug>
 # revisor: un CLI externo, o la palabra "subagente"
 reviewer: codex exec --skip-git-repo-check -
 webhook:                 # opcional, Slack/Discord
@@ -35,6 +45,25 @@ Tipos, esquemas o formas de API que más de una tarea necesita. Cada uno debe se
 tarea propia, aguas arriba de quienes lo consumen.
 
 - `T-001` define `Usuario` y el esquema de sesión → lo consumen T-002, T-003
+
+## Base del proyecto (T-000)
+Qué falta hoy del cimiento. En un repo maduro, casi todo marcado como presente.
+
+| Elemento | Estado | Lo arregla |
+|---|---|---|
+| Repositorio git con al menos un commit | presente / falta | T-000 |
+| `.gitignore` cubre dependencias, build y secretos | | |
+| `.env.example` con todas las variables de la suite | | |
+| Manifiestos y lockfiles commiteados | | |
+| Configuración de linter, formateador y runner | | |
+| Un test trivial que pasa | | |
+
+Criterio que cierra T-000, con los comandos reales:
+
+```bash
+git clone <repo> /tmp/verificacion-base && cd /tmp/verificacion-base
+<cmd_setup> && <cmd_test> && <cmd_build>
+```
 
 ## Inventario de afirmaciones
 Obligatorio cuando el cambio revierte o redefine algo. Qué se afirma hoy que va a dejar

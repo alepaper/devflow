@@ -181,8 +181,9 @@ que haga todas sus ediciones, o encadenarlas. Claude propone; tú decides.
 Al final te muestra el mapa de olas y **cuántos agentes sirven de verdad**:
 
 ```
-Ola 1: T-001, T-002, T-003   → 3 agentes
-Ola 2: T-004, T-005, T-006   → 3 agentes
+Ola 1: T-000                 → 1 agente   (base del proyecto, siempre sola)
+Ola 2: T-001, T-002, T-003   → 3 agentes
+Ola 3: T-004, T-005, T-006   → 3 agentes
 
 Agentes recomendados: 3
 ```
@@ -214,9 +215,53 @@ Los archivos de tarea siguen siendo la fuente de verdad. Linear es el espejo par
 Te pregunta con cuántos agentes arrancar, reparte tareas **por nombre** (nadie elige la
 suya), y por cada una: tests que fallan primero → código mínimo → refactor → suite
 completa → build → commit solo de los archivos declarados → revisión por otro agente →
-aprobada.
+merge → aprobada.
 
 Te notifica al terminar cada tarea y al terminar todo.
+
+**La primera tarea siempre es T-000**, la base del proyecto, y corre sola. Verifica que
+exista el cimiento: git con al menos un commit, `.gitignore` que cubra `node_modules` y
+`.env`, `.env.example` completo, lockfiles commiteados, configuración y un test trivial
+que pase. En un repo ya armado cierra rápido; es verificación, no burocracia.
+
+Cierra cuando un clon limpio corre `cmd_setup`, la suite y el build sin errores. Ese
+chequeo es el que garantiza que después todos los worktrees funcionen.
+
+**Con dos o más agentes, cada tarea corre en su propio worktree.** Crea la rama de
+integración `devflow/<plan>` y un worktree por tarea de la ola:
+
+```
+../mi-app-T-002    rama devflow/mi-plan/T-002
+../mi-app-T-003    rama devflow/mi-plan/T-003
+```
+
+Con un solo agente no hay worktrees. Con dos o más son obligatorios, y no por los
+archivos — eso ya lo cubre la matriz. Es por el TDD: antes de commitear, el agente corre
+la suite completa; si está roja por el trabajo a medias de otro, no puede distinguirla de
+una regresión propia, y la compuerta deja de significar algo.
+
+Cada tarea aprobada se integra de inmediato en `devflow/<plan>`, en orden de dependencia,
+con la suite verde después de cada merge. Al terminar el plan esa rama va una sola vez a
+tu rama base.
+
+**El worktree se elimina apenas la tarea se mergea**, o si queda bloqueada. Lo que ocupa
+espacio no es el checkout: son los `node_modules` o `.venv` que `cmd_setup` instaló
+adentro, y cuatro tareas en paralelo son cuatro copias completas. Al cerrar el plan,
+`git worktree list` debe mostrar solo tu repositorio.
+
+Si una sesión se corta a mitad, quedan worktrees huérfanos. `/progress` te los reporta
+con cuánto disco retienen, y `/autopilot` los limpia antes de crear la siguiente ola.
+
+Necesitas `cmd_setup` configurado en `plan.md`: un worktree nuevo no trae `node_modules`
+ni `.env`, y sin eso la suite no corre ahí. Lo decide el lockfile del proyecto —
+`pnpm-lock.yaml` → `pnpm install --frozen-lockfile`, `package-lock.json` → `npm ci`,
+`uv.lock` → `uv sync --frozen`.
+
+Si estás arrancando un proyecto nuevo, `pnpm` y `uv` valen la pena: comparten un almacén
+y enlazan duro, así que cuatro worktrees ocupan ~1 copia de dependencias en vez de
+cuatro. Con `npm` o `pip` cada agente extra cuesta un árbol completo en disco.
+
+Con un solo agente no hay worktrees: se trabaja directo sobre la rama de integración.
 
 ---
 
@@ -239,6 +284,24 @@ Para revisar una tarea suelta sin pasar por autopilot:
 ```
 /cross-review T-003
 ```
+
+---
+
+## Proyectos de versiones anteriores
+
+Si creaste planes con una versión previa, puede que la carpeta se llame `breakdown/` en
+vez de `tasks/`, o que el documento del plan sea `tasks.md` o `breakdown.md`. Fueron dos
+renombres de comando que arrastraron rutas por error.
+
+No tienes que hacer nada: las skills leen ambos nombres, y la primera que escriba en el
+plan — `/breakdown` o `/autopilot` — lo renombra al layout canónico, corrige las
+referencias internas y lo deja en un commit propio. Te lo dice en una línea.
+
+`/progress` solo te avisa, porque no escribe nada.
+
+Dos casos en que para y pregunta: si existen `tasks/` y `breakdown/` a la vez (migración a
+medias), y si hay una ola en vuelo — ahí hay agentes con rutas ya resueltas y worktrees
+creados, así que la migración espera a que cierre.
 
 ---
 
@@ -278,6 +341,9 @@ no insistirle:
 | Tercera ronda de CHANGES_REQUESTED | La tarea está mal especificada, no mal implementada. Vuelve al spec o pártela. |
 | Toca auth, pagos, migraciones destructivas o borrado de datos | Autoriza explícitamente o saca eso del alcance. |
 | Un agente necesita un archivo que su tarea no declaró | La matriz falló. Arregla el plan antes de seguir. |
+| Un worktree no puede correr la suite | Defecto de T-000: `cmd_setup` está incompleto. Arréglalo ahí, no parcheando el worktree. |
+| Conflicto de merge al integrar | El plan estaba mal: dos tareas compartían archivo. Se arregla en el plan, no resolviendo el conflicto a mano. |
+| Merge limpio pero la suite roja | Conflicto semántico: dos tareas que no comparten archivo cambiaron el mismo comportamiento. La matriz no previene esto. Decide tú el arreglo. |
 | El spec no cubre una decisión | Contéstala. Adivinar es cómo se construye lo equivocado con confianza. |
 
 ---

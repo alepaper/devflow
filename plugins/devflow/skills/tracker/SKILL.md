@@ -11,7 +11,7 @@ description: Decides and manages where tasks are recorded — Linear issues or l
 Tasks need to live somewhere a human can see them. Two options, and the choice is
 reversible at any moment:
 
-- **Files (default)** — `docs/plans/<slug>/breakdown/T-00N.md`. No setup, no account, works
+- **Files (default)** — `docs/plans/<slug>/tasks/T-00N.md`. No setup, no account, works
   offline, versioned with the code.
 - **Linear** — one issue per task, dependencies as blocking relations, visible to a team.
 
@@ -32,6 +32,17 @@ When they disagree, the task file wins and the issue gets corrected.
 - Tasks were created as files and now need to move to Linear
 
 ## Files mode (default)
+**Legacy layouts.** Before anything else, resolve the plan directory. Some projects were
+created with `breakdown/` instead of `tasks/`, or `tasks.md` / `breakdown.md` instead of
+`plan.md` — two over-broad command renames dragged artifact paths along with them.
+
+Read `tasks/` first, falling back to `breakdown/`; `plan.md` first, falling back to
+`tasks.md` then `breakdown.md`. If a legacy name is found, **migrate it with `git mv`
+before working**, in its own commit, and tell the user in one line. If both the canonical
+and the legacy name exist, stop and ask — merging them blindly can lose task files.
+
+Procedure: `../breakdown/references/plan-layout.md`.
+
 
 No setup. `/breakdown` writes one file per task using the format in
 `../breakdown/references/task-format.md`.

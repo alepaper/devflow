@@ -38,7 +38,18 @@ implementing from a progress check.
 
 ### 2. Read every task file
 
-`docs/plans/<slug>/breakdown/*.md`. From each frontmatter: `estado`, `depende_de`, and the
+Resolve the directory first: `tasks/`, falling back to `breakdown/`. The plan document is
+`plan.md`, falling back to `tasks.md` then `breakdown.md`. Older projects carry those
+legacy names from two over-broad renames.
+
+**Report the legacy layout; don't migrate it.** This skill is read-only, and the rename
+belongs to a skill that's about to work on the plan anyway:
+
+> El plan usa el layout viejo (`breakdown/`). `/breakdown` o `/autopilot` lo migran solo
+> la próxima vez que corran.
+
+
+`docs/plans/<slug>/tasks/*.md`. From each frontmatter: `estado`, `depende_de`, and the
 agent and review rounds from its bitácora.
 
 ### 3. Classify
@@ -62,7 +73,24 @@ they ask "¿cómo va?" — give the shape, and the detail only where there's a p
 Always end with **the next decision the user owes you**, if there is one. If there isn't,
 say the plan can continue unattended.
 
-### 5. Flag what looks wrong
+### 5. Check for orphan worktrees
+
+```bash
+git worktree list
+```
+
+Anything beyond the main repository that doesn't match a task currently `in_progress` or
+`in_review` is an orphan from a session that ended early. Each holds a full copy of the
+project's dependencies, so report them with their size:
+
+```bash
+du -sh ../<repo>-*
+```
+
+Report, don't remove — this skill is read-only. Say which ones and how much they hold, so
+the user or `/autopilot` can clear them.
+
+### 6. Flag what looks wrong
 
 Say it, don't fix it:
 
@@ -72,6 +100,9 @@ Say it, don't fix it:
 - Task files and Linear disagreeing — report both, don't silently pick one
 - Two in-flight tasks whose declared files overlap — that's a plan defect that will
   cause a collision
+- Orphan worktrees, with how much disk they're holding
+- A legacy directory layout, named but not changed
+- Both `tasks/` and `breakdown/` present — a half-finished migration, which needs a human
 
 ## Common Rationalizations
 
@@ -97,5 +128,7 @@ Say it, don't fix it:
 - [ ] Nothing was written or committed
 - [ ] "Listas ahora" only lists tasks whose dependencies are all `done`
 - [ ] Blocked tasks name what blocks them
+- [ ] Orphan worktrees were reported with their size, not removed
+- [ ] A legacy layout was reported, not migrated
 - [ ] Anomalies were flagged, not repaired
 - [ ] The report ends with the next decision the user owes, or says none is pending

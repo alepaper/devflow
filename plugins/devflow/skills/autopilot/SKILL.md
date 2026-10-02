@@ -17,6 +17,9 @@ Three invariants, none negotiable:
 1. **No code counts as done without tests written before it.**
 2. **No agent reviews its own code.** Ever. Not with a fresh prompt, not "carefully".
 3. **No agent picks its own task.** You — the orchestrator — assign them.
+4. **Con más de un agente, cada tarea corre en su propio worktree.** Sin aislamiento, la
+   compuerta de suite verde del paso 6 no se puede hacer cumplir: un rojo por trabajo
+   ajeno a medias es indistinguible de una regresión propia.
 
 That third one is what replaces the old locking engine. Self-service claiming has a
 race: two agents read the board in the same instant, both see T-002 pending with its
@@ -28,7 +31,7 @@ dependencies met, both take it. With a single dispatcher there is nothing to rac
 
 ## When to Use
 
-- An approved plan exists at `docs/plans/<slug>/breakdown.md` with task files
+- An approved plan exists at `docs/plans/<slug>/plan.md` with task files
 - The user wants to run all of it, or just one stage of it
 - The user asks how the work is going
 
@@ -53,8 +56,19 @@ Anything unrecognized → treat as `all` and say which mode you picked.
 ## Setup, once per run
 
 ### 1. Read the board
+**Legacy layouts.** Before anything else, resolve the plan directory. Some projects were
+created with `breakdown/` instead of `tasks/`, or `tasks.md` / `breakdown.md` instead of
+`plan.md` — two over-broad command renames dragged artifact paths along with them.
 
-Read every file in `docs/plans/<slug>/breakdown/`. Their `estado` frontmatter is the truth.
+Read `tasks/` first, falling back to `breakdown/`; `plan.md` first, falling back to
+`tasks.md` then `breakdown.md`. If a legacy name is found, **migrate it with `git mv`
+before working**, in its own commit, and tell the user in one line. If both the canonical
+and the legacy name exist, stop and ask — merging them blindly can lose task files.
+
+Procedure: `../breakdown/references/plan-layout.md`.
+
+
+Read every file in `docs/plans/<slug>/tasks/`. Their `estado` frontmatter is the truth.
 Build the picture yourself:
 
 - **done** — finished and approved
@@ -80,6 +94,87 @@ Show the ready set and the wave map from `plan.md`, then ask:
 
 Cap at 4. Say plainly when the honest answer is 1 — a plan where each task unlocks the
 next runs with one agent, and that's correct, not a failure.
+
+### 3a. T-000 first, always
+
+The baseline task gates everything. Until T-000 is `done`, there are no worktrees and no
+parallel agents — a worktree that can't run the suite produces red results that mean
+nothing, and you'd debug the same missing `.env.example` in every one of them.
+
+Run it alone, on the integration branch:
+
+```
+/autopilot task T-000
+```
+
+It closes when a fresh clone passes `cmd_setup`, `cmd_test` and `cmd_build`. That check
+is what proves every later worktree will work.
+
+If the repository has no commits yet, T-000 makes the first one. `git worktree add` fails
+without it.
+
+### 3b. Clear orphan worktrees before creating new ones
+
+A session that ended mid-plan leaves worktrees behind, each holding a full copy of the
+project's dependencies.
+
+```bash
+git worktree list          # todo lo que no sea el repo principal ni una tarea en vuelo
+```
+
+Remove them before starting. Creating a new wave on top of orphans is how a machine ends
+up with eight copies of `node_modules`. See `references/worktrees.md`.
+
+### 3c. Create one worktree per task — only when running more than one agent
+
+**One agent: no worktrees.** Work directly on the integration branch. There's nothing to
+isolate from, and `cmd_setup` would be paid for nothing.
+
+**Two or more agents: one worktree per task, no exceptions.** Not because of file
+collisions — the matrix already prevents those. Because of TDD.
+
+Each of the three steps of the loop asks a question that a shared tree makes
+unanswerable:
+
+| Paso | La pregunta | Qué pasa en árbol compartido |
+|---|---|---|
+| RED | ¿falló por la razón correcta? | Puede haber fallado por el módulo a medio escribir de otro agente |
+| GREEN | ¿pasó por mi código? | Puede haber pasado por el de otro |
+| Suite completa | ¿rompí algo? | Rojo por trabajo ajeno, indistinguible del propio |
+
+El tercero es el que decide. Al terminar, el agente corre la suite completa antes de
+commitear. Si está roja por el estado intermedio de otro, tiene dos salidas: esperar — y
+entonces ya serializó, el paralelismo se perdió igual — o decidir que "esos fallos no son
+míos" y commitear. Lo segundo convierte la compuerta en teatro, y no hay forma confiable
+de separar la regresión propia del trabajo ajeno a medias.
+
+Sin aislamiento, **la compuerta de suite verde no se puede hacer cumplir**. Esa es la
+razón, no el ruido.
+
+Create the integration branch once per plan, then one worktree per task in the wave:
+
+```bash
+git switch -c devflow/<plan>                      # rama de integración, una vez
+git worktree add ../<repo>-T-002 -b devflow/<plan>/T-002 devflow/<plan>
+git worktree add ../<repo>-T-003 -b devflow/<plan>/T-003 devflow/<plan>
+```
+
+Each worktree branches from the integration branch as it stands **at the start of the
+wave**, so every task in a wave sees its dependencies already merged.
+
+A fresh worktree has no `node_modules`, `.venv`, `target/`, or any other ignored build
+artifact, and no `.env`. Tests will not run until it's prepared. Run `cmd_setup` from
+`plan.md` in each new worktree, and copy whatever ignored files the suite needs:
+
+```bash
+cd ../<repo>-T-002 && <cmd_setup>
+cp ../<repo>/.env .env          # y cualquier otro archivo ignorado que la suite requiera
+```
+
+If `cmd_setup` isn't configured and the project needs one, stop and ask. Discovering it
+after three worktrees are running wastes all three.
+
+See `references/worktrees.md` for the full protocol.
 
 ### 4. Confirm the reviewer
 
@@ -112,6 +207,15 @@ plans get edited.
 
 ### 3. Each agent runs its task
 
+**Every agent must load the `tdd` skill before writing anything.** Say so in the brief,
+by name. The four-line RED/GREEN/REFACTOR summary in the brief is a reminder, not a
+substitute: an agent that only sees the summary will skip the checks that give the loop
+its value — that the RED failed for the right reason, that the test would fail against an
+empty implementation, that nothing was weakened to reach green.
+
+`tdd` is `user-invocable: false`, so it loads only when an agent decides to. For a
+mandatory invariant that's too thin a thread. Name it.
+
 See `references/agent-brief.md` for the exact brief to give each one. The shape:
 
 claim nothing → read the task file → **RED**: write failing tests → **GREEN**: minimum
@@ -126,13 +230,59 @@ Invoke the `cross-review` skill per task. The reviewer must differ from the impl
 - **CHANGES_REQUESTED** → `estado: changes_requested` with the blockers in the bitácora.
   Back to the implementing agent. After **3 rounds**, stop and escalate — the task is
   mis-specified, not badly implemented.
-- **BLOCKED** → `estado: blocked`, notify, stop.
+- **BLOCKED** → `estado: blocked`, notify, stop. **Remove its worktree** and keep the
+  branch: a blocked task can sit for days holding the same disk as an active one, and the
+  branch preserves whatever work exists until the user decides.
 
-### 5. Notify
+### 5. Merge into the integration branch
+
+An approved task merges immediately, not at the end. Merging six branches at once is a
+worse problem than merging one six times.
+
+Merge in **dependency order**, never completion order:
+
+```bash
+git switch devflow/<plan>
+git merge --no-ff devflow/<plan>/T-002
+<cmd_test>                                  # la suite debe quedar verde tras CADA merge
+git worktree remove ../<repo>-T-002         # libera node_modules/.venv, que es el peso real
+git branch -d devflow/<plan>/T-002
+```
+
+El worktree se elimina aquí, no al final del plan. Lo que ocupa espacio no es el
+checkout: son las dependencias que `cmd_setup` instaló dentro. Si `remove` se niega, hay
+archivos sin rastrear ahí — míralos antes de forzar, porque suele significar que la tarea
+tocó algo que no declaró.
+
+`--no-ff` preserves the task boundary, which is what keeps every task individually
+revertible.
+
+**A merge conflict means the plan was wrong.** Two tasks shared a file the matrix said
+they didn't. Do not resolve it by hand: record which files conflicted, stop, and fix the
+plan. An ad-hoc resolution repairs the symptom and leaves the planning defect in place,
+so it happens again in the next wave.
+
+**A green merge with a red suite is worse, and the matrix cannot catch it.** The tasks
+touched no common file but changed the same behavior — a shared assumption, a contract
+one side altered, a fixture the other relied on. That's a semantic conflict. File
+exclusivity never promised to prevent it. Treat it as a stop condition: say which two
+tasks, and let the user decide.
+
+When the plan finishes, the integration branch merges to the base branch once, and the
+cleanup is verified rather than assumed:
+
+```bash
+git worktree list                        # solo el repositorio principal
+git branch --list 'devflow/<plan>/*'     # vacío
+```
+
+A finished plan that left worktrees or task branches behind isn't finished.
+
+### 6. Notify
 
 Per task and at the end. See `references/notifications.md` — one shell line, no tooling.
 
-### 6. Loop
+### 7. Loop
 
 Back to step 1.
 
@@ -157,8 +307,13 @@ Stop, notify, and ask the user when:
   permissions, destructive migrations, payments, deletions, secrets, **or anything you
   cannot undo with `git revert`**
 - An agent reports it needs a file its task didn't declare
-- Two agents produced conflicting changes — which now means the plan had a collision the
-  matrix missed, so fix the plan before continuing
+- A merge conflict appears — the plan had a collision the matrix missed. Fix the plan,
+  don't resolve the conflict by hand
+- The suite goes red after a conflict-free merge — a semantic conflict between two tasks
+  that share no file. Name both tasks and stop
+- A worktree can't run the suite because `cmd_setup` is missing or incomplete — that's a
+  T-000 defect; fix it there rather than patching each worktree
+- Dispatching parallel tasks while T-000 is still open
 
 Re-invoking `/autopilot` resumes from the ready set. State is in the task files, so
 resuming across sessions is free.
@@ -180,11 +335,17 @@ user. If worktrees were used, list branches still pending merge.
 |---|---|
 | "Que cada agente tome la tarea que quiera, es más simple" | Two agents can read the board in the same instant and take the same task. You assign. |
 | "Tengo 3 agentes y 1 tarea lista, le doy algo al resto" | Inventing work outside the ready set is exactly how collisions happen. Run one. |
+| "El agente ya sabe hacer TDD, no hace falta nombrar la skill" | It'll follow the four-line summary and skip the checks. Name it. |
 | "Esta tarea es trivial, el test sobra" | Trivial code breaks too, and now nothing tells you when. |
 | "Me reviso yo mismo, con cuidado" | You share the blind spot that produced the code. |
 | "El suite tarda, corro solo los tests de mi tarea" | That's how a regression ships. |
 | "Junto tres tareas en un commit" | You lost the clean rollback point that was the reason for per-task commits. |
 | "Dos agentes necesitan el mismo archivo, que se coordinen" | The plan is wrong. Fix the plan, don't coordinate around it. |
+| "El repo ya está armado, me salto T-000" | Then the first thing you learn in three worktrees at once is what's missing. Verify once. |
+| "Los worktrees los limpio al final, total" | Each one holds a full copy of the dependencies. Four tasks is four `node_modules`. |
+| "La tarea quedó bloqueada, dejo el worktree por si acaso" | It can sit for days holding the same disk as an active one. Remove it; the branch keeps the work. |
+| "`remove` se queja, le pongo `--force`" | Those untracked files may be work the task never declared. Look before destroying. |
+| "Le instalo las dependencias a mano al worktree" | You just hid a T-000 defect. The next worktree has the same problem. |
 | "Está bloqueado pero creo que sé qué quiso decir" | Guessing at a blocker builds the wrong thing confidently. Ask. |
 
 ## Red Flags
@@ -192,6 +353,13 @@ user. If worktrees were used, list branches still pending merge.
 - An agent choosing its own task
 - Running more agents than there are ready tasks
 - Two agents in flight whose tasks share a file
+- Two or more agents running in the same working tree
+- A merge conflict resolved by hand instead of escalated as a planning defect
+- Branches merged in completion order instead of dependency order
+- A merge that didn't run the full suite afterwards
+- Worktrees left behind after their branches merged, or after a task was blocked
+- `git worktree remove --force` used without first listing what it would destroy
+- A new wave created while orphan worktrees from a previous session still exist
 - A task marked `done` whose tests were written after the implementation
 - The same agent implementing and reviewing
 - `git add -A` anywhere
@@ -205,6 +373,16 @@ user. If worktrees were used, list branches still pending merge.
 
 - [ ] Every task was assigned by the orchestrator, never self-selected
 - [ ] No two tasks running in parallel shared a file
+- [ ] A legacy plan layout was migrated before dispatching, never mid-wave
+- [ ] T-000 closed, with the fresh-clone check passing, before any worktree was created
+- [ ] Every parallel task ran in its own worktree, prepared with `cmd_setup`
+- [ ] Branches merged in dependency order, with the full suite green after each merge
+- [ ] Any conflict was escalated as a planning defect, not resolved ad hoc
+- [ ] Every worktree was removed when its task merged, was blocked, or was abandoned
+- [ ] Nothing was force-removed without first inspecting the untracked files
+- [ ] At the end, `git worktree list` shows only the main repository and no
+      `devflow/<plan>/*` task branches remain
+- [ ] Every agent was told by name to load the `tdd` skill
 - [ ] Every completed task has tests that were written before its implementation
 - [ ] Every completed task was reviewed by a different agent
 - [ ] Every completed task has exactly one commit, containing only its declared files
