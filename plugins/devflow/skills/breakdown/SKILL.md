@@ -127,6 +127,44 @@ no `node_modules` and no `.env`. Note which ignored files the suite needs too. R
 
 Write no code during planning.
 
+**Explore here, once, so the implementers don't have to.** This is the single biggest
+cost lever in the whole flow: with N agents, anything an implementer has to go find is
+found N times, by the more numerous and usually cheaper models. You're the one agent
+holding the whole picture — spend the exploration here.
+
+For each task you're about to write, collect the concrete things an implementer would
+otherwise search for:
+
+| Recoge | En vez de que el agente busque |
+|---|---|
+| Rutas exactas de los archivos a crear o editar | "los archivos de auth" |
+| Firmas reales que va a llamar o implementar | el agente leyendo tres archivos para deducirlas |
+| El patrón vecino que debe seguir, citado con su ruta | "sigue las convenciones del proyecto" |
+| Cómo se nombran y dónde viven los tests de esa área | el agente infiriéndolo de ejemplos |
+| Trampas conocidas de esa zona del código | el agente tropezando con ellas |
+
+Eso va en la sección **Contexto** del archivo de tarea. Una tarea bien escrita se ejecuta
+sin abrir nada que no esté declarado.
+
+Regla que lo mantiene honesto: **si un implementador necesita explorar para entender qué
+hacer, la tarea estaba incompleta.** No es culpa del agente; es un defecto de planeación,
+igual que una colisión de archivos.
+
+### Step 1a — Carry the model choice forward
+
+Read `modelo_implementacion` from the spec's frontmatter, or from an earlier `plan.md` in
+`docs/plans/`. Write it into this plan's `plan.md`. Ask only if no plan in the project
+records it — procedure in `../spec/references/models.md`.
+
+If the session is running on a cheaper model than the one recorded for planning, say so
+once:
+
+> Estás planeando con `sonnet` y el proyecto recomienda `opus` para esta fase. La matriz
+> de archivos y el grafo de dependencias son lo que decide si el paralelismo funciona.
+> ¿Sigo, o prefieres cambiar con `/model` primero?
+
+Then accept whatever they answer. One mention, not a campaign.
+
 ### Step 1b — Emit T-000, the baseline task
 
 **Every plan starts with T-000, and every otherwise-dependency-free task depends on it.**
@@ -137,91 +175,13 @@ In a mature repository T-000 is mostly verification and closes quickly. Emit it 
 the cost of confirming is minutes, and the cost of discovering a missing `.env.example`
 with three worktrees already running is all three.
 
-#### Two categories, and they behave oppositely
+Detalle de qué verifica, el criterio de clon limpio, por qué `.gitignore` es crítico aquí,
+y cómo elegir `cmd_setup`: `references/baseline.md`.
 
-**Versioned — T-000 creates and commits these. Every worktree gets them for free:**
-
-| Artefacto | Qué verificar |
-|---|---|
-| Repositorio git | Inicializado y **con al menos un commit** — `git worktree add` falla en un repo sin commits |
-| `.gitignore` | Ignora dependencias (`node_modules`, `.venv`, `vendor`), artefactos de build, secretos (`.env`), y archivos de editor y sistema |
-| `.env.example` | **Toda** variable que el código o la suite lee, con valores de ejemplo no secretos |
-| Manifiestos y lockfiles | `package.json` + `package-lock.json`, `pyproject.toml` + `uv.lock`, etc. El lockfile se commitea |
-| Configuración | Linter, formateador, `tsconfig`/`pyproject`, runner de tests |
-| Un test trivial que pasa | Prueba que el runner está realmente conectado |
-
-**No versionado — `cmd_setup` los materializa, en cada worktree, cada vez:**
-
-`node_modules`, `.venv`, `vendor`, el `.env` real copiado de `.env.example`, cachés y
-artefactos de build.
-
-Estos **no pueden ser el producto de una tarea**: están en `.gitignore`, así que no queda
-nada commiteado y el siguiente worktree no los tendría. El trabajo de T-000 no es
-instalarlos — es **hacer que `cmd_setup` exista y funcione**.
-
-#### The acceptance criterion that actually proves it
-
-One check subsumes every item above:
-
-```bash
-git clone <repo> /tmp/verificacion-base && cd /tmp/verificacion-base
-<cmd_setup>
-<cmd_test>      # verde
-<cmd_build>     # sin errores
-```
-
-A fresh clone is exactly what a worktree is, minus the shared git directory. If this
-passes, every worktree will work. If it doesn't, none will, and you'll debug it N times
-in parallel instead of once.
-
-Write it as T-000's criteria verbatim, with the real commands filled in.
-
-#### Why `.gitignore` is load-bearing here
-
-It isn't hygiene. If `node_modules` or `.venv` aren't ignored, they get committed, and
-then every worktree carries a copy that conflicts on merge — reintroducing precisely the
-collision worktrees exist to prevent. Check it before anything else.
-
-Same for `.env`: committed secrets are the one defect in this list you can't fix by
-deleting the file later.
-
-#### Pick `cmd_setup` from the lockfile, not from preference
-
-`cmd_setup` runs once per worktree, so its cost multiplies by the width of the wave.
-
-**The project's lockfile decides the package manager.** Switching managers on an existing
-project changes dependency resolution — `pnpm`'s non-flat `node_modules` breaks packages
-that rely on npm's hoisting. Preference only applies when there's no lockfile yet, which
-means a new project T-000 is bootstrapping.
-
-```bash
-command -v pnpm >/dev/null 2>&1 && echo pnpm || echo npm
-command -v uv   >/dev/null 2>&1 && echo uv   || echo pip
-```
-
-Prefer `pnpm` and `uv` when the choice is open. Both keep a shared content-addressed
-store and hard-link into `node_modules` / `.venv`, so N worktrees cost roughly one copy
-on disk instead of N, and every install after the first is near-instant. With `npm`, four
-worktrees are four complete dependency trees.
-
-`uv pip install -r requirements.txt` is the one safe swap on an existing project: same
-format, same resolution, much faster.
-
-Always use the frozen form — `npm ci`, `pnpm install --frozen-lockfile`, `uv sync
---frozen`. A `cmd_setup` that updates the lockfile does it in every worktree at once and
-guarantees a merge conflict in a file no task declared.
-
-If neither manager exists for a stack the project uses, **stop and tell the user what to
-install**. There's nothing to work around: without it no worktree can be prepared and the
-suite can't run.
-
-Full tables and caching details: `references/package-managers.md`.
-
-#### Dependencies belong to T-000 or to one task
-
-Adding a dependency touches the manifest and the lockfile. Two tasks doing that in
-parallel conflict on the lockfile every time. Known dependencies go in T-000; a
-dependency discovered later belongs to exactly one task, and that task owns both files.
+Lo que no puede quedar implícito: lo no versionado (`node_modules`, `.venv`, el `.env`
+real) **no puede ser producto de una tarea** — está ignorado, así que no queda nada
+commiteado y el siguiente worktree no lo tendría. El trabajo de T-000 es hacer que
+`cmd_setup` funcione, no instalar nada.
 
 ### Step 2 — Slice vertically
 
@@ -258,63 +218,12 @@ Any change that reverses or redefines something already true in the repo:
 Removals are the worst offenders. Deleting a component leaves every sentence that
 mentioned it behind, and those sentences read as current.
 
-#### How to build it
+Cómo buscarlo, qué superficies revisar, el formato de la tabla y cómo dimensionar las
+tareas de documentación: `references/assertion-inventory.md`.
 
-For each behavior the change touches, find **what claims it today** — not what calls it.
-A symbol search finds the code; prose that asserts the old rule has no symbol.
-
-Search three ways, because each misses what the others catch:
-
-1. The old **name** (`state.json`, `--plugin-dir`, the old command)
-2. The old **concept in prose** ("el estado vive en", "se instala con", "requiere Python")
-3. The **inverse claim** — text that says something is impossible, required or absent
-   that is about to stop being true
-
-Surfaces worth checking, in rough order of how often they're missed:
-
-| Surface | Why it gets missed |
-|---|---|
-| README and `docs/` | Everyone assumes someone else updates them |
-| Templates and scaffolding | They *generate* the stale text into new files |
-| Examples inside documentation | Copy-pasted by users, so wrong examples spread |
-| Tests that encode the old rule | They pass, so nothing flags them |
-| Help text and error messages | Live in strings, invisible to a symbol search |
-| Other prompts, skills or agent instructions | Assert behavior in prose, never in code |
-| Comments and changelogs | Nobody greps comments |
-| The plan's own artifacts | `spec.md` and the task templates state rules too |
-
-That last row matters: if a rule applies to the system, it applies to the system's own
-documents. A plan that changes a rule and leaves its own spec asserting the old one is
-inconsistent by construction.
-
-#### The output
-
-A table, written into `plan.md`:
-
-| Afirmación que cambia | Dónde se afirma hoy | Tarea |
-|---|---|---|
-| El estado vive en `state.json` | `README.md` §Artefactos, `USO.md` §3, `skills/autopilot/SKILL.md` | T-004 |
-| Se instala con `--plugin-dir` | `README.md` §Instalación, `INSTALAR.md` | T-004 |
-
-**Every surface must have an owning task.** A surface with no task is an incomplete plan,
-not a documentation chore for later — "later" means it surfaces in review, which is the
-expensive place to find it.
-
-These surfaces then flow into Step 3 as declared files, so the matrix resolves their
-collisions like any others. Frequently one documentation task ends up owning several
-surfaces; that's fine and usually correct, since they change together and a single writer
-keeps them consistent.
-
-#### Sizing
-
-Updating documentation is a task with acceptance criteria like any other:
-
-```
-- [ ] Ninguna búsqueda de "state.json" devuelve texto que lo presente como vigente
-- [ ] Los ejemplos del README corren tal como están escritos
-```
-
-A criterion phrased as a search is verifiable, which is what makes the task closeable.
+Lo esencial: busca de **tres formas**, porque cada una atrapa lo que las otras no — el
+nombre viejo, el concepto escrito en prosa, y la afirmación inversa. Y **toda superficie
+necesita tarea dueña**: una sin dueño es un plan incompleto, no documentación para después.
 
 ### Step 3 — Declare the files, then build the matrix
 
@@ -444,6 +353,7 @@ docs/plans/<slug>/
 |---|---|
 | "Comparten archivo pero editan partes distintas" | Two agents writing one file is a conflict regardless of which lines. It's a dependency. |
 | "La carpeta se llama `breakdown/`, escribo ahí y ya" | Then the project stays split between two layouts and the next skill resolves differently. Migrate once. |
+| "El agente que implemente ya buscará lo que necesite" | With N agents, that search happens N times, usually on cheaper models. Explore once, here. |
 | "El repo ya existe, T-000 sobra" | Verifying costs minutes. A missing `.env.example` found with three worktrees running costs all three. |
 | "Pongo 'instalar dependencias' como tarea" | It's gitignored, so nothing gets committed and the next worktree still lacks it. That's `cmd_setup`. |
 | "Cada tarea instala lo que necesite" | Two tasks touching the lockfile conflict every time. Dependencies go in T-000 or in exactly one task. |
@@ -465,6 +375,8 @@ docs/plans/<slug>/
 - Migrating while a wave is in flight — agents hold resolved paths and live worktrees
 - Merging `tasks/` and `breakdown/` automatically when both exist
 - A plan with no T-000
+- A task whose Contexto says "sigue las convenciones" instead of citing a file
+- A task that forces the implementer to search for a signature the planner already read
 - A task whose output is `node_modules` or `.venv` — those are `cmd_setup`, not deliverables
 - Two tasks that both modify a dependency manifest or lockfile
 - T-000 marked done without running the fresh-clone check
@@ -512,6 +424,8 @@ docs/plans/<slug>/
 - [ ] The inventory was built by searching for the old name, the old concept in prose,
       and the inverse claim — not only by symbol
 - [ ] Templates, examples, help text and the plan's own artifacts were checked
+- [ ] Every task's Contexto section carries concrete paths, real signatures and the
+      pattern to follow, so the implementer doesn't have to explore
 - [ ] Every task declares its files as concrete paths
 - [ ] The file → tasks matrix is written into `plan.md`
 - [ ] **No file appears in two tasks of the same wave**

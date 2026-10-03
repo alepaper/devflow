@@ -44,8 +44,35 @@ Declararlos por adelantado es lo que evita que dos agentes choquen.
 - `src/auth/login.ts`
 - `tests/auth/login.test.ts`
 
-## Notas de contexto
-Patrones existentes que seguir, decisiones ya tomadas, trampas conocidas.
+## Contexto
+Lo que el implementador necesitaría buscar, ya buscado. Con N agentes, cada búsqueda que
+no esté aquí se repite N veces.
+
+**Firmas que va a usar** — reales, copiadas del código, con su ruta:
+
+```ts
+// src/lib/sesion.ts
+export function firmarSesion(usuarioId: string, ttlDias: number): string
+export function verificarSesion(token: string): { usuarioId: string } | null
+```
+
+**Patrón a seguir** — un archivo concreto, no "las convenciones del proyecto":
+
+> Sigue la estructura de `src/rutas/registro.ts`: validación con zod arriba, el handler
+> devuelve `Resultado<T>`, los errores salen por `respuestaError()`.
+
+**Tests de esta área** — dónde viven y cómo se nombran:
+
+> `tests/auth/*.test.ts`, nombres en español describiendo comportamiento, helper
+> `crearUsuarioDePrueba()` en `tests/helpers/usuarios.ts`.
+
+**Trampas conocidas**:
+
+> El middleware de sesión corre antes que el parser de body; leer `req.body` ahí es
+> `undefined`.
+
+Si esta sección dice "seguir las convenciones existentes", la tarea no está lista: eso
+obliga al agente a explorar, que es justo lo que el planificador ya hizo.
 
 ## Bitácora
 Se llena durante la ejecución. Append-only.

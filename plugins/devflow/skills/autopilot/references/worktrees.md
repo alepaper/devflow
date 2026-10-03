@@ -52,9 +52,17 @@ rama de integración es el único lugar donde la suite completa debe estar verde
 ### Un worktree por tarea de la ola
 
 ```bash
-git worktree add ../<repo>-T-002 -b devflow/<plan>/T-002 devflow/<plan>
-git worktree add ../<repo>-T-003 -b devflow/<plan>/T-003 devflow/<plan>
+git worktree add ../<repo>-T-002 -b devflow/<plan>-T-002 devflow/<plan>
+git worktree add ../<repo>-T-003 -b devflow/<plan>-T-003 devflow/<plan>
 ```
+
+**El guion antes del id de tarea no es estético.** Git guarda las ramas como rutas de
+archivo, así que no pueden coexistir `devflow/<plan>` y `devflow/<plan>/T-002`: la primera
+sería un archivo y la segunda exigiría que fuera un directorio. Con barra, el segundo
+`worktree add` falla con `cannot lock ref ... exists`.
+
+El guion además deja el filtro de limpieza limpio: `devflow/<plan>-*` lista las ramas de
+tarea sin incluir la de integración.
 
 El último argumento es el punto de partida: la rama de integración **como está al
 comenzar la ola**. Así cada tarea ve sus dependencias ya integradas, que es justo lo que
@@ -91,7 +99,7 @@ compartirlos reintroduce el problema que los worktrees resuelven.
 
 ```bash
 git switch devflow/<plan>
-git merge --no-ff devflow/<plan>/T-002
+git merge --no-ff devflow/<plan>-T-002
 <cmd_test>
 ```
 
@@ -130,7 +138,7 @@ tarea bloqueada deja su worktree ocupando lo mismo que uno activo, y a veces dur
 
 ```bash
 git worktree remove ../<repo>-T-002
-git branch -d devflow/<plan>/T-002
+git branch -d devflow/<plan>-T-002
 ```
 
 `git worktree remove` se niega si hay archivos **no rastreados y no ignorados** en el
@@ -177,7 +185,7 @@ git worktree prune
 git switch <rama-base> && git merge --no-ff devflow/<plan>
 git worktree prune
 git worktree list          # debe quedar solo el repositorio principal
-git branch --list 'devflow/<plan>/*'   # debe salir vacío
+git branch --list 'devflow/<plan>-*'   # debe salir vacío
 ```
 
 Las dos últimas líneas son la verificación. Un plan terminado que deja worktrees o ramas

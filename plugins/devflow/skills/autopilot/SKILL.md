@@ -68,7 +68,13 @@ and the legacy name exist, stop and ask — merging them blindly can lose task f
 Procedure: `../breakdown/references/plan-layout.md`.
 
 
-Read every file in `docs/plans/<slug>/tasks/`. Their `estado` frontmatter is the truth.
+Read **only the frontmatter** of each file in `docs/plans/<slug>/tasks/` — you need
+`estado` and `depende_de`, nothing else. Reading 20 full task files every round, when the
+first ten lines of each answer the question, is context you pay for on every iteration.
+
+Read a task's body when you're about to dispatch it, not before.
+
+Their `estado` frontmatter is the truth.
 Build the picture yourself:
 
 - **done** — finished and approved
@@ -151,30 +157,12 @@ de separar la regresión propia del trabajo ajeno a medias.
 Sin aislamiento, **la compuerta de suite verde no se puede hacer cumplir**. Esa es la
 razón, no el ruido.
 
-Create the integration branch once per plan, then one worktree per task in the wave:
+Montaje, preparación con `cmd_setup`, orden de merge, qué hacer ante un conflicto y
+limpieza: `references/worktrees.md`.
 
-```bash
-git switch -c devflow/<plan>                      # rama de integración, una vez
-git worktree add ../<repo>-T-002 -b devflow/<plan>/T-002 devflow/<plan>
-git worktree add ../<repo>-T-003 -b devflow/<plan>/T-003 devflow/<plan>
-```
-
-Each worktree branches from the integration branch as it stands **at the start of the
-wave**, so every task in a wave sees its dependencies already merged.
-
-A fresh worktree has no `node_modules`, `.venv`, `target/`, or any other ignored build
-artifact, and no `.env`. Tests will not run until it's prepared. Run `cmd_setup` from
-`plan.md` in each new worktree, and copy whatever ignored files the suite needs:
-
-```bash
-cd ../<repo>-T-002 && <cmd_setup>
-cp ../<repo>/.env .env          # y cualquier otro archivo ignorado que la suite requiera
-```
-
-If `cmd_setup` isn't configured and the project needs one, stop and ask. Discovering it
-after three worktrees are running wastes all three.
-
-See `references/worktrees.md` for the full protocol.
+Un worktree nuevo no trae `node_modules` ni `.env`. Si `cmd_setup` falta y el proyecto lo
+necesita, **para y pregunta antes de crear ninguno**: descubrirlo con tres ya creados
+desperdicia los tres.
 
 ### 4. Confirm the reviewer
 
@@ -207,14 +195,25 @@ plans get edited.
 
 ### 3. Each agent runs its task
 
-**Every agent must load the `tdd` skill before writing anything.** Say so in the brief,
-by name. The four-line RED/GREEN/REFACTOR summary in the brief is a reminder, not a
-substitute: an agent that only sees the summary will skip the checks that give the loop
-its value — that the RED failed for the right reason, that the test would fail against an
-empty implementation, that nothing was weakened to reach green.
+Dispatch to the **`devflow-implementer`** subagent that ships with this plugin. It
+declares `skills: [tdd]`, so the TDD skill enters its context deterministically — not
+because the agent chose to load it. For a mandatory invariant, "the agent will probably
+load it" is too thin a thread.
 
-`tdd` is `user-invocable: false`, so it loads only when an agent decides to. For a
-mandatory invariant that's too thin a thread. Name it.
+The injection is **scoped on purpose**: the implementer gets `tdd` because it writes
+code; `devflow-reviewer` doesn't, because judging someone else's tests needs the review
+prompt, not the authoring loop; and you, the orchestrator, never load it at all. A skill
+injected where it isn't used is context paid for on every turn for nothing.
+
+Override the subagent's `model` per call from `modelo_implementacion` in `plan.md` when
+it's set.
+
+If the subagent isn't available — devflow installed as plain skills rather than as a
+plugin — fall back to a generic agent and tell it **by name** to load the `tdd` skill.
+
+Each agent returns a **fixed six-line block** — task, status, tests, commit, files,
+blocker — and nothing else. Its final message lands in your context for the rest of the
+plan, so prose there multiplies by every task. The detail lives in the task's bitácora.
 
 See `references/agent-brief.md` for the exact brief to give each one. The shape:
 
@@ -239,44 +238,28 @@ Invoke the `cross-review` skill per task. The reviewer must differ from the impl
 An approved task merges immediately, not at the end. Merging six branches at once is a
 worse problem than merging one six times.
 
-Merge in **dependency order**, never completion order:
+Orden de dependencia, nunca de terminación, con `--no-ff` y la suite verde después de
+cada merge. El worktree se elimina aquí mismo. Procedimiento completo en
+`references/worktrees.md`.
 
-```bash
-git switch devflow/<plan>
-git merge --no-ff devflow/<plan>/T-002
-<cmd_test>                                  # la suite debe quedar verde tras CADA merge
-git worktree remove ../<repo>-T-002         # libera node_modules/.venv, que es el peso real
-git branch -d devflow/<plan>/T-002
-```
+Dos fallos distintos que no hay que confundir:
 
-El worktree se elimina aquí, no al final del plan. Lo que ocupa espacio no es el
-checkout: son las dependencias que `cmd_setup` instaló dentro. Si `remove` se niega, hay
-archivos sin rastrear ahí — míralos antes de forzar, porque suele significar que la tarea
-tocó algo que no declaró.
+**Conflicto de merge** = el plan estaba mal, dos tareas compartían un archivo. No lo
+resuelvas a mano: regístralo, para, arregla el plan. Una resolución improvisada repara el
+síntoma y deja el defecto para la siguiente ola.
 
-`--no-ff` preserves the task boundary, which is what keeps every task individually
-revertible.
+**Merge limpio con suite roja** = conflicto semántico. Las tareas no tocaron ningún
+archivo común pero cambiaron el mismo comportamiento. La exclusividad de archivos nunca
+prometió prevenir esto. Es condición de parada: nombra las dos tareas y deja que el
+usuario decida.
 
-**A merge conflict means the plan was wrong.** Two tasks shared a file the matrix said
-they didn't. Do not resolve it by hand: record which files conflicted, stop, and fix the
-plan. An ad-hoc resolution repairs the symptom and leaves the planning defect in place,
-so it happens again in the next wave.
-
-**A green merge with a red suite is worse, and the matrix cannot catch it.** The tasks
-touched no common file but changed the same behavior — a shared assumption, a contract
-one side altered, a fixture the other relied on. That's a semantic conflict. File
-exclusivity never promised to prevent it. Treat it as a stop condition: say which two
-tasks, and let the user decide.
-
-When the plan finishes, the integration branch merges to the base branch once, and the
-cleanup is verified rather than assumed:
+Al terminar el plan, la rama de integración va una sola vez a la rama base, y la limpieza
+se verifica en vez de asumirse:
 
 ```bash
 git worktree list                        # solo el repositorio principal
-git branch --list 'devflow/<plan>/*'     # vacío
+git branch --list 'devflow/<plan>-*'     # vacío
 ```
-
-A finished plan that left worktrees or task branches behind isn't finished.
 
 ### 6. Notify
 
@@ -335,6 +318,7 @@ user. If worktrees were used, list branches still pending merge.
 |---|---|
 | "Que cada agente tome la tarea que quiera, es más simple" | Two agents can read the board in the same instant and take the same task. You assign. |
 | "Tengo 3 agentes y 1 tarea lista, le doy algo al resto" | Inventing work outside the ready set is exactly how collisions happen. Run one. |
+| "Dejo que el agente resuma lo que hizo, es más informativo" | Its message stays in your context all plan. Fifteen prose reports is ~30k tokens that also degrade your decisions. |
 | "El agente ya sabe hacer TDD, no hace falta nombrar la skill" | It'll follow the four-line summary and skip the checks. Name it. |
 | "Esta tarea es trivial, el test sobra" | Trivial code breaks too, and now nothing tells you when. |
 | "Me reviso yo mismo, con cuidado" | You share the blind spot that produced the code. |
@@ -381,8 +365,12 @@ user. If worktrees were used, list branches still pending merge.
 - [ ] Every worktree was removed when its task merged, was blocked, or was abandoned
 - [ ] Nothing was force-removed without first inspecting the untracked files
 - [ ] At the end, `git worktree list` shows only the main repository and no
-      `devflow/<plan>/*` task branches remain
-- [ ] Every agent was told by name to load the `tdd` skill
+      `devflow/<plan>-*` task branches remain
+- [ ] Implementation ran through `devflow-implementer`, or `tdd` was named explicitly in
+      the fallback
+- [ ] `tdd` was not injected into the reviewer or the orchestrator
+- [ ] Agents returned the fixed report block, not prose
+- [ ] The ready set was recomputed from frontmatter, not from full task files
 - [ ] Every completed task has tests that were written before its implementation
 - [ ] Every completed task was reviewed by a different agent
 - [ ] Every completed task has exactly one commit, containing only its declared files

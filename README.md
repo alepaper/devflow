@@ -1,11 +1,11 @@
-# devflow
+# devflow para Claude Code
 
-Plugin de Claude Code para desarrollo asistido por agentes. Ocho skills que cubren el
-ciclo desde el levantamiento del requerimiento hasta código revisado y commiteado.
+Desarrollo asistido por agentes en ocho skills, desde el levantamiento del requerimiento
+hasta código revisado y commiteado.
 
 ```
 /spec → /spec-check → /breakdown → /autopilot → /progress
-         validación    plan     ejecución    estado
+        validación    plan         ejecución    estado
 ```
 
 Los artefactos son markdown bajo `docs/plans/<plan>/`. No hay servicio, base de datos ni
@@ -542,6 +542,26 @@ Costo: un archivo que necesitan cinco tareas las serializa. Los planes resultan 
 secuenciales, y habrá olas de un solo agente. `/breakdown` reporta el ancho de cada ola como
 número recomendado de agentes, con tope de 4.
 
+### Exploración en planeación
+
+`/breakdown` explora el repositorio una vez y escribe en cada tarea las rutas exactas, las
+firmas reales y el patrón a seguir. Con N agentes, cualquier cosa que un implementador
+tenga que ir a buscar se busca N veces, en los modelos más numerosos y normalmente más
+baratos.
+
+De ahí sale la regla que lo mantiene honesto: **si un implementador necesita explorar para
+entender qué hacer, la tarea estaba incompleta.** Es un defecto de planeación, igual que
+una colisión de archivos.
+
+### Contrato de reporte
+
+Cada subagente devuelve un bloque fijo de seis líneas — tarea, estado, tests, commit,
+archivos, bloqueante — y nada más. Su mensaje final se queda en el contexto del
+orquestador el resto del plan: un reporte en prosa son ~2000 tokens, el bloque son ~50, y
+con quince tareas la diferencia degrada las decisiones del orquestador además de su costo.
+
+El detalle no se pierde, vive en la bitácora del archivo de tarea.
+
 ### Invariantes
 
 1. **Tests antes del código.** Ninguna tarea cuenta como terminada sin tests que se
@@ -588,6 +608,8 @@ cmd_build: npm run build
 cmd_lint: npm run lint
 cmd_setup: npm ci                               # preparar un worktree nuevo
 worktree_files: [.env]                          # ignorados que la suite necesita
+modelo_planeacion: claude-opus-4-6              # recomendación; lo fija tu /model
+modelo_implementacion: sonnet                   # lo usa devflow al despachar subagentes
 reviewer: codex exec --skip-git-repo-check -    # o: subagente
 webhook:                                        # opcional, Slack/Discord
 ```
@@ -608,6 +630,41 @@ devflow/                              # raíz del marketplace
 
 ---
 
+## Subagentes
+
+El plugin trae dos definiciones en `agents/`:
+
+| Subagente | Para qué | Qué se le inyecta |
+|---|---|---|
+| `devflow-implementer` | Implementa una tarea con TDD | `skills: [tdd]`, herramientas de edición, `maxTurns` acotado |
+| `devflow-reviewer` | Revisa cuando no hay CLI externo | Solo lectura, **sin `tdd`** |
+
+La inyección es acotada a propósito. El implementador recibe `tdd` porque escribe código;
+el revisor no, porque juzgar los tests de otro necesita el prompt de revisión, no el ciclo
+de autoría; y el orquestador no la carga nunca. Una skill inyectada donde no se usa es
+contexto que se paga en cada turno para nada.
+
+Esto también hace determinista una de las invariantes: `tdd` entra por configuración, no
+porque el agente decida cargarla.
+
+## Elección de modelos
+
+`/spec` pregunta una vez por proyecto qué modelo usar para los agentes de implementación.
+Pregunta y acepta: no inspecciona el entorno, no busca claves de API, no lee tu
+configuración.
+
+La elección se reparte así:
+
+| Fase | Quién decide |
+|---|---|
+| `/spec`, `/spec-check`, `/breakdown` | Tú, con `/model`. Corren en la sesión principal; una skill no puede cambiar su propio modelo |
+| Implementación y revisión | devflow, vía el campo `model` del subagente |
+
+Recomendación: el modelo más capaz para las fases de decisión, uno medio para
+implementación. **El nivel de implementación depende de qué tan buenas sean tus tareas** —
+una tarea con rutas concretas y tests listados la ejecuta bien un modelo medio; una tarea
+vaga obliga al agente a decidir diseño, y ahí lo barato sale caro.
+
 ## Historial de versiones
 
 Decisiones y cambios por versión: [CHANGELOG.md](CHANGELOG.md).
@@ -617,8 +674,3 @@ Decisiones y cambios por versión: [CHANGELOG.md](CHANGELOG.md).
 - **Despliegue fuera de alcance.** El flujo termina en código revisado y commiteado.
 - **Validación del grafo manual.** `/breakdown` verifica ciclos y dependencias inexistentes
   con un checklist, no con una herramienta.
-- **Paralelismo con worktrees poco ejercitado.** El ciclo completo se ha corrido de punta
-  a punta, pero con pocos agentes. En un proyecto nuevo, arranca con
-  `/autopilot task T-000` y un agente antes de escalar.
-- **Conflictos semánticos fuera del alcance de la matriz.** Dos tareas que no comparten
-  archivo pueden romper el mismo comportamiento. Se detecta en el merge, no al planear.

@@ -168,7 +168,9 @@ found in review usually means two more nobody looked for.
 
 ### 5. Reviewing as a subagent
 
-When the reviewer is `subagente`, spawn a Task-tool agent with the same prompt and an explicit
+When the reviewer is `subagente`, use the **`devflow-reviewer`** subagent shipped with
+this plugin: read-only tools, no `tdd` injected, and a system prompt that forbids editing
+code. Otherwise spawn a Task-tool agent with the same prompt and an explicit
 instruction: *"No escribiste este código. No asumas buena intención en el diff. Verifica
 los criterios uno por uno contra los tests."*
 

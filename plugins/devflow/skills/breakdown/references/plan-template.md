@@ -23,6 +23,11 @@ cmd_setup: pnpm install --frozen-lockfile
 # archivos ignorados que la suite necesita y hay que copiar a cada worktree
 worktree_files: [.env]
 rama_integracion: devflow/<slug>
+# modelos: el de planeación es recomendación (lo fija /model), el de
+# implementación lo usa devflow al despachar subagentes
+modelo_planeacion: claude-opus-4-6
+modelo_implementacion: sonnet
+effort_implementacion:        # solo si el modelo declara soportar effort
 # revisor: un CLI externo, o la palabra "subagente"
 reviewer: codex exec --skip-git-repo-check -
 webhook:                 # opcional, Slack/Discord

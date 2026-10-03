@@ -31,7 +31,21 @@ No tomes ninguna otra tarea. Si terminas, reporta y para.
 7. Marca `estado: in_review` en tu archivo de tarea y agrega a la bitácora
    los tests que pasaron y el sha del commit.
 
-8. NO apruebes tu propio trabajo. Termina aquí y reporta.
+8. NO apruebes tu propio trabajo. Termina aquí.
+
+9. Tu mensaje final debe ser EXACTAMENTE este bloque y nada más:
+
+   TAREA: T-003
+   ESTADO: in_review | blocked
+   TESTS: <n> nuevos, suite completa <verde|roja>
+   COMMIT: <sha corto>
+   ARCHIVOS: <rutas separadas por coma>
+   BLOQUEANTE: <una línea, o vacío>
+
+   Sin resumen, sin razonamiento, sin repetir lo que hiciste. Todo eso ya quedó en
+   la bitácora del archivo de tarea, que es donde se consulta. Tu mensaje final
+   entra al contexto del orquestador: si escribes dos párrafos, los multiplica por
+   cada tarea del plan.
 
 Restricciones duras:
 - Solo edita los archivos que TU tarea declara. Ningún otro.
@@ -42,6 +56,16 @@ Restricciones duras:
 - Si la tarea toca auth, permisos, pagos, migraciones destructivas, borrado de datos
   o algo no reversible con `git revert`, PARA y pide autorización.
 ```
+
+## Por qué el reporte es tan corto
+
+El mensaje final de cada subagente entra al contexto del orquestador y se queda ahí el
+resto del plan. Un reporte en prosa son ~2000 tokens; el bloque de arriba son ~50. Con 15
+tareas, la diferencia es ~30.000 tokens de contexto del orquestador — que además degradan
+sus decisiones, no solo su costo.
+
+El detalle no se pierde: vive en la bitácora del archivo de tarea, donde se consulta
+cuando hace falta en vez de cargarse siempre.
 
 La restricción de "solo escribe tu archivo de tarea" es lo que reemplaza al lock: si cada
 agente escribe un archivo distinto, no hay nada que contender.

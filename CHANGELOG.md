@@ -4,11 +4,40 @@ Formato según [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 > El contenido de 1.1.0 y 1.0.0 está reconstruido a partir de lo que hay en la librería.
 > Si tus etiquetas del repositorio dividen el trabajo de otra forma, ajusta esas dos
-> secciones. La de 1.2.0 es exacta.
+> secciones.
 
 ---
 
-## [1.2.0] — sin publicar
+## [1.2.1]
+
+Corrección de un esquema de nombres que rompía toda ola paralela, encontrada ejecutando
+el flujo completo sobre un proyecto real.
+
+### Corregido
+
+- **Nombres de rama de tarea: `devflow/<plan>/T-00N` → `devflow/<plan>-T-00N`.**
+  Git guarda las ramas como rutas de archivo, así que `devflow/<plan>` y
+  `devflow/<plan>/T-002` no pueden coexistir: la primera sería un archivo y la segunda
+  exigiría que fuera un directorio. El segundo `git worktree add` de cada ola fallaba con
+  `cannot lock ref ... exists`. No fallaba a veces: fallaba siempre que hubiera dos o más
+  agentes.
+
+  El guion además deja correcto el filtro de limpieza — `devflow/<plan>-*` lista las ramas
+  de tarea sin incluir la de integración, que con barra era ambiguo.
+
+### Cambiado
+
+- Título del README a **devflow para Claude Code**: el alcance va en el título en vez de
+  en un párrafo al principio.
+- Limitaciones conocidas reducidas a las dos reales. Los conflictos semánticos salieron
+  de ahí: están manejados como condición de parada del protocolo de merge, y un caso
+  manejado no es una limitación.
+- Diagrama del pipeline realineado — las etiquetas habían quedado bajo el comando
+  equivocado desde el renombre a `/breakdown`.
+
+---
+
+## [1.2.0]
 
 Ejecución en paralelo con aislamiento real, base del proyecto garantizada, y corrección
 de un defecto que afectaba a todos los planes.
@@ -50,15 +79,46 @@ de un defecto que afectaba a todos los planes.
   aparte y corrigen las referencias internas; `/progress` solo lo reporta, porque es de
   solo lectura.
 
+- **Dos subagentes en `agents/`**: `devflow-implementer` (modelo configurable,
+  `skills: [tdd]`, herramientas de edición, `maxTurns` acotado) y `devflow-reviewer`
+  (solo lectura, **sin `tdd`**, prohibido editar código). La inyección de skills es
+  acotada a propósito: una skill cargada donde no se usa es contexto que se paga en cada
+  turno para nada.
+
+- **Contrato de reporte terso.** Cada subagente devuelve un bloque fijo de seis líneas —
+  tarea, estado, tests, commit, archivos, bloqueante — y nada más. Su mensaje final se
+  queda en el contexto del orquestador el resto del plan: un reporte en prosa son ~2000
+  tokens contra ~50, y con quince tareas eso degrada las decisiones además del costo. El
+  detalle vive en la bitácora de la tarea.
+
+- **Exploración movida a la planeación.** La sección `Contexto` de cada tarea trae rutas
+  exactas, firmas reales copiadas del código y un archivo citado como patrón. Con N
+  agentes, cualquier cosa que un implementador tenga que ir a buscar se busca N veces, en
+  los modelos más numerosos y baratos. Regla que lo sostiene: si un implementador necesita
+  explorar para entender qué hacer, la tarea estaba incompleta.
+
+- **Elección de modelo para los agentes de implementación**, en `/spec`, una vez por
+  proyecto. Pregunta y acepta: no inspecciona el entorno ni busca claves de API. El modelo
+  de las fases de planeación es el de la sesión y lo fija el usuario con `/model`.
+
 - `cmd_setup` y `worktree_files` en el frontmatter de `plan.md`.
 - `/progress` reporta worktrees huérfanos con cuánto disco retienen.
 - Referencias nuevas: `worktrees.md`, `package-managers.md`, `plan-layout.md`.
 
 ### Cambiado
 
-- **La skill `tdd` se invoca por nombre** en el brief de cada agente. Antes ninguna skill
-  la nombraba y, al ser `user-invocable: false`, una de las tres invariantes dependía de
-  que el subagente decidiera auto-cargarla teniendo un resumen de cuatro líneas delante.
+- **`tdd` entra por configuración, no por decisión del agente.** Antes ninguna skill la
+  nombraba y, al ser `user-invocable: false`, una de las tres invariantes dependía de que
+  el subagente decidiera auto-cargarla teniendo un resumen de cuatro líneas delante. Ahora
+  `devflow-implementer` la declara en `skills:`, así que entra de forma determinista.
+
+- **El orquestador lee solo el frontmatter** de los archivos de tarea al recalcular qué
+  está listo. Leer veinte archivos completos por ronda, cuando las primeras líneas
+  responden la pregunta, es contexto que se paga en cada iteración.
+
+- **Skills recortadas de 2189 a 2021 líneas.** El detalle de T-000, el inventario de
+  afirmaciones, las capas de validación del spec y el protocolo de worktrees pasaron a
+  referencias, que solo se cargan cuando hacen falta.
 
 - **Justificación de los worktrees corregida.** No es que el rojo ajeno sea ruido: es que
   sin aislamiento **la compuerta de suite verde no se puede hacer cumplir**. Cuando un
