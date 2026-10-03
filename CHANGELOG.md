@@ -8,6 +8,21 @@ Formato según [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ---
 
+## [1.2.3]
+
+### Corregido
+
+- **Instalación rota: `"agents": "./agents"` en `plugin.json`.** El validador de Claude
+  Code rechaza ese campo con `Validation errors: agents: Invalid input`, aunque la
+  documentación lo declare como `string|array`. El plugin no se podía instalar en 1.2.2.
+
+  Se quitó el campo. `agents/` en la raíz del plugin se autodescubre, igual que `skills/`
+  y `commands/`, así que declararlo nunca fue necesario. El manifiesto quedó reducido a
+  los campos que el validador acepta con certeza: `name`, `version`, `description`,
+  `author`, `license`, `keywords`.
+
+---
+
 ## [1.2.2]
 
 ### Agregado
