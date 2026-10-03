@@ -42,6 +42,23 @@ Write the test. Run it. Confirm two things:
 2. **It fails for the right reason.** "Function not defined" is a correct RED.
    "Cannot read property of undefined in the test setup" is a broken test, not a RED.
 
+**Record the failure.** Paste the failing line into the task's bitácora before writing any
+implementation — the error type and message, trimmed to one or two lines:
+
+```
+- `2026-10-02T10:12Z` A1 RED: 3 tests, fallan con
+  ModuleNotFoundError: No module named 'validadores.email'
+```
+
+Without this, nothing downstream can tell a test written first from one written after. The
+reviewer sees a single commit where tests and implementation arrive together; the order
+lives nowhere else. An invariant that leaves no evidence isn't enforced, it's trusted.
+
+A RED whose reason is a logic mismatch (`AssertionError: expected 5, got 4`) on code that
+already existed is a different thing from a RED that says the code is absent. Say which it
+is: for new behavior expect absence; for a behavior change, note that the old test broke
+deliberately.
+
 This step is where people cheat, and it's the step that carries all the value. Skipping
 it means you never learn whether the test can detect the absence of the feature.
 
@@ -150,6 +167,7 @@ having its regression test.
 
 - Implementation written before its test exists
 - A test that has never been observed failing
+- A bitácora with no RED entry, or one written after the implementation landed
 - A test that passes on an empty implementation
 - `skip`, `only`, or commented-out assertions in committed code
 - Assertions removed or loosened to get green
@@ -162,6 +180,7 @@ having its regression test.
 ## Verification
 
 - [ ] Every test was observed failing before its implementation existed
+- [ ] The RED output is recorded in the task's bitácora, trimmed to the failing line
 - [ ] Each failure was for the intended reason, not a setup error
 - [ ] Each acceptance criterion in the task maps to at least one test
 - [ ] Tests describe behavior, not internals

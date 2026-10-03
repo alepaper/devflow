@@ -69,10 +69,16 @@ Procedure: `../breakdown/references/plan-layout.md`.
 The reviewer gets no conversation history — everything it needs must be in the prompt:
 
 ```bash
-git diff <base>..HEAD -- <archivos de la tarea>    # el cambio
-cat docs/plans/<slug>/tasks/T-003.md               # criterios de aceptación
+git diff <base>..HEAD                              # el commit COMPLETO, sin filtrar por ruta
+cat docs/plans/<slug>/tasks/T-003.md               # criterios, archivos declarados, bitácora
 <comando de test>                                  # salida real de los tests
 ```
+
+**Nunca filtres el diff por los archivos que la tarea declaró.** Sería circular: el alcance
+de la auditoría lo definiría justamente lo que podría estar violado. Un agente que edita un
+archivo no declarado produciría una revisión incapaz de verlo.
+
+Pasa la lista de archivos declarados **como dato a evaluar**, no como filtro.
 
 ### 2. Build the review prompt
 
@@ -108,7 +114,22 @@ Eres un ingeniero senior haciendo code review. NO escribiste este código.
    ¿Dependencias en la dirección correcta? ¿Sobre-ingeniería?
 5. LEGIBILIDAD — ¿otro ingeniero lo entiende sin explicación? ¿Nombres claros?
    ¿Anidamiento razonable?
-6. AFIRMACIONES OBSOLETAS — si este cambio revierte o redefine algo (un nombre, un
+6. ARCHIVOS NO DECLARADOS — la tarea declara qué archivos puede tocar. ¿El commit toca
+   alguno fuera de esa lista? Si sí, es BLOQUEANTE: significa que la matriz de archivos
+   del plan tenía un hueco, y dos agentes en paralelo pudieron escribir lo mismo.
+   Cita cada archivo no declarado.
+7. EVIDENCIA DEL RED — la bitácora de la tarea debe traer la salida real del fallo
+   anterior a la implementación. ¿Está? ¿El motivo del fallo es coherente con que el
+   código no existía todavía (`NameError`, `ModuleNotFoundError`, 404, "is not a
+   function")? Un RED que muestra un fallo de lógica sobre código que ya existía no
+   prueba que el test se haya escrito primero. Sin evidencia, es BLOQUEANTE.
+8. LINT — si el plan declara `cmd_lint`, ¿su salida está en la bitácora y pasa sobre los
+   archivos de esta tarea?
+9. DOCUMENTACIÓN — mira `documentar_codigo` en `plan.md`. Si es `si`, un docstring
+   faltante en código que esta tarea escribió es BLOQUEANTE. Si es `no`, va a NITS y
+   nunca bloquea. No inventes el criterio: si el campo no está, trátalo como `no`.
+   Aplica solo al código nuevo del diff, no a lo que ya estaba sin documentar.
+10. AFIRMACIONES OBSOLETAS — si este cambio revierte o redefine algo (un nombre, un
    default, una regla, una dependencia), ¿queda texto que siga afirmando lo anterior?
    Revisa documentación, plantillas, ejemplos, mensajes de ayuda y error, y los
    comentarios que el diff toca. Cita el archivo y la frase.
@@ -127,6 +148,15 @@ Usa CHANGES_REQUESTED solo por problemas reales de corrección, tests, seguridad
 diseño. Preferencias de estilo van en NITS y no bloquean.
 Usa BLOCKED si el cambio toca algo irreversible o necesita una decisión humana.
 ```
+
+**NIT** es *nitpick*: un señalamiento menor que no impide aprobar. "Esto lo habría hecho
+distinto, tómalo o déjalo." Es el término estándar de code review y el que los modelos
+revisores reconocen, por eso se mantiene en inglés junto a `VERDICT` y `BLOCKERS`.
+
+La separación entre las dos listas es lo que hace que la revisión sirva. Sin ella pasa una
+de dos cosas, ambas malas: un revisor que bloquea por preferencias entrena a todos a
+ignorar las revisiones, o uno que aprueba "con comentarios menores" y esos comentarios no
+se atienden jamás.
 
 ### 3. Run it
 
@@ -182,6 +212,9 @@ Context contamination is what makes self-review worthless.
 | Blocks | Doesn't block |
 |---|---|
 | An acceptance criterion isn't met | Naming you'd have done differently |
+| A file outside the task's declared list | A file layout you'd have chosen differently |
+| A missing docstring on new code, **when `documentar_codigo` is `si`** | A missing docstring when it's `no` |
+| No RED evidence in the bitácora | RED output pasted verbatim instead of trimmed |
 | Text still asserting behavior this change reversed | A doc you'd have worded differently |
 | A criterion has no test | A missing comment |
 | Tests would pass on an empty implementation | Formatting the linter doesn't flag |
@@ -222,6 +255,10 @@ approves untested criteria makes the whole gate theater.
 - [ ] The reviewer is a different agent from the implementer
 - [ ] The review prompt contained the task criteria, the full diff and real test output
 - [ ] A structured verdict was produced and parsed
+- [ ] The reviewer saw the **full commit diff**, not a path-filtered one
+- [ ] Files outside the task's declared list were flagged as blockers
+- [ ] The bitácora's RED evidence exists and its failure reason is consistent with the
+      code not existing yet
 - [ ] Every acceptance criterion was checked against a specific test
 - [ ] For a behavior reversal: documentation, templates, examples and messages were
       checked for text that still asserts the old behavior

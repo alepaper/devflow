@@ -37,6 +37,7 @@ Escribe estos ANTES del código. Son el contrato.
 - [ ] Tests enfocados: `<comando de test de la tarea>`
 - [ ] Suite completa en verde: `<comando de test>`
 - [ ] Build limpio: `<comando de build>`
+- [ ] Lint limpio sobre los archivos de esta tarea: `<cmd_lint>`
 
 ## Archivos que va a tocar
 Declararlos por adelantado es lo que evita que dos agentes choquen.
@@ -78,7 +79,9 @@ obliga al agente a explorar, que es justo lo que el planificador ya hizo.
 Se llena durante la ejecución. Append-only.
 
 - `2026-09-14T10:02Z` A1 tomó la tarea
-- `2026-09-14T10:41Z` A1: 4 tests en verde, build ok, commit `a3f9c21`
+- `2026-09-14T10:18Z` A1 RED: 4 tests, fallan con
+  `AttributeError: module 'auth' has no attribute 'login'`
+- `2026-09-14T10:41Z` A1: 4 tests en verde, build ok, lint ok, commit `a3f9c21`
 - `2026-09-14T10:52Z` codex: CHANGES_REQUESTED — falta rate limiting en login
 - `2026-09-14T11:10Z` A1: rate limiting agregado, commit `b81d004`
 - `2026-09-14T11:18Z` codex: APPROVED
@@ -90,6 +93,9 @@ Se llena durante la ejecución. Append-only.
 - **Los archivos declarados son un contrato.** Si una tarea necesita tocar un archivo que
   no declaró y otra tarea activa sí lo declaró, para y avisa — no edites a ciegas.
 - **La bitácora nunca se reescribe.** Solo se agregan líneas al final.
+- **La entrada RED es obligatoria y va antes de implementar.** Es la única evidencia de
+  que el test se escribió primero: el revisor ve un commit donde test e implementación
+  llegan juntos. Sin ella, la revisión bloquea.
 - **Este archivo ES el estado.** El campo `estado` del frontmatter es la verdad. Lo
   escribe únicamente el agente asignado a esta tarea; ningún otro archivo del plan se
   toca. Linear, si está configurado, es el espejo.

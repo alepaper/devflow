@@ -8,6 +8,49 @@ Formato según [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ---
 
+## [1.3.0]
+
+Cuatro huecos encontrados auditando la librería contra sí misma.
+
+### Corregido
+
+- **La revisión ya no filtra el diff por los archivos declarados.** Usaba
+  `git diff ... -- <archivos de la tarea>`, de modo que el alcance de la auditoría lo
+  definía justamente lo que podía estar violado: un agente que editara un archivo no
+  declarado producía una revisión incapaz de verlo. Ahora recibe el commit completo, y la
+  lista de archivos declarados entra **como dato a evaluar**, no como filtro. Un archivo
+  fuera de la lista es bloqueante, porque significa que la matriz del plan tenía un hueco.
+
+- **El RED deja evidencia.** Ocho lugares exigían que el test fallara primero y ninguno
+  pedía prueba de que hubiera ocurrido. El revisor ve un commit donde test e
+  implementación llegan juntos, así que el orden no vivía en ninguna parte. Ahora el
+  agente pega la línea del fallo en la bitácora antes de implementar, y la revisión
+  bloquea si falta o si el motivo del fallo no es coherente con que el código no
+  existiera.
+
+- **`cmd_lint` se usa.** Estaba declarado en la plantilla y ninguna skill lo consumía, así
+  que el linting no corría nunca. Ahora va junto a tests y build en la verificación, con
+  una regla para lo preexistente: si el lint falla en archivos que la tarea no tocó, se
+  reporta y no se arregla — sería trabajo no declarado, y el revisor lo marcaría.
+
+### Agregado
+
+- **`documentar_codigo` en `plan.md`: `si` | `no`.** `/breakdown` detecta la convención del
+  código existente y solo pregunta si no hay una clara. La respuesta se escribe en el
+  Contexto de cada tarea, y `/cross-review` bloquea por un docstring faltante solo cuando
+  es `si`.
+
+  Binario a propósito: un desarrollador documenta lo que escribe o no lo documenta.
+  Partirlo por "superficie pública" es convención de autor de bibliotecas y no significa
+  nada en código de aplicación, que es la mayoría de los planes.
+
+  El valor por defecto sigue siendo `no`, pero ahora como posición explícita y no como
+  omisión: los tests describen el comportamiento y no pueden desviarse de él, los
+  comentarios sí. Hasta aquí, la revisión trataba un docstring faltante como NIT sin que
+  nadie hubiera decidido que ese era el criterio.
+
+---
+
 ## [1.2.3]
 
 ### Corregido

@@ -27,6 +27,9 @@ rama_integracion: devflow/<slug>
 # implementación lo usa devflow al despachar subagentes
 modelo_planeacion: claude-opus-4-6
 modelo_implementacion: sonnet
+# ¿documentar el código que escriban las tareas? si | no
+# 'no' significa que los tests documentan el comportamiento
+documentar_codigo: no
 effort_implementacion:        # solo si el modelo declara soportar effort
 # revisor: un CLI externo, o la palabra "subagente"
 reviewer: codex exec --skip-git-repo-check -

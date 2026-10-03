@@ -217,9 +217,10 @@ plan, so prose there multiplies by every task. The detail lives in the task's bi
 
 See `references/agent-brief.md` for the exact brief to give each one. The shape:
 
-claim nothing → read the task file → **RED**: write failing tests → **GREEN**: minimum
-code → **REFACTOR** → full suite + build → commit only the declared files → set
-`estado: in_review` in its own task file → **stop, without approving itself**.
+claim nothing → read the task file → **RED**: write failing tests, record the failure line
+in the bitácora → **GREEN**: minimum code → **REFACTOR** → full suite + build + lint →
+commit only the declared files → set `estado: in_review` in its own task file → **stop,
+without approving itself**.
 
 ### 4. Review each finished task
 
@@ -370,6 +371,7 @@ user. If worktrees were used, list branches still pending merge.
       the fallback
 - [ ] `tdd` was not injected into the reviewer or the orchestrator
 - [ ] Agents returned the fixed report block, not prose
+- [ ] Every completed task's bitácora records the RED output and the test/build/lint results
 - [ ] The ready set was recomputed from frontmatter, not from full task files
 - [ ] Every completed task has tests that were written before its implementation
 - [ ] Every completed task was reviewed by a different agent

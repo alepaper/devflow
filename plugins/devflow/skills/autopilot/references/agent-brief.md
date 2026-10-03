@@ -18,12 +18,20 @@ No tomes ninguna otra tarea. Si terminas, reporta y para.
 
 4. Implementa con TDD estricto:
    RED    escribe los tests listados en la tarea, córrelos, verifica que FALLAN
+          y PEGA la línea del fallo en la bitácora antes de implementar nada
           y que fallan por la razón correcta
    GREEN  el código mínimo para pasarlos
    REFACTOR con los tests en verde
 
-5. Verifica: <comando de test completo> y <comando de build>.
+5. Verifica: <cmd_test>, <cmd_build> y <cmd_lint> si está configurado.
    La suite completa, no solo tus tests.
+   Si el lint falla en archivos que tu tarea NO tocó, es preexistente: repórtalo,
+   no lo arregles — sería trabajo no declarado y el revisor lo marcaría.
+   Anota en la bitácora el resultado de los tres.
+
+   Mira `documentar_codigo` en el plan. Si dice `si`, documenta lo que escribas.
+   Si dice `no`, no agregues docstrings ni comentarios explicativos: el proyecto
+   decidió que los tests documentan el comportamiento.
 
 6. Commitea SOLO los archivos que la tarea declara. Nunca `git add -A`.
    Mensaje: "T-003: <título>" + qué hiciste + "Plan: <slug> · Tarea: T-003"

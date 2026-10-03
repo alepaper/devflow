@@ -26,7 +26,8 @@ validar en un borde de confianza, secretos en código o logs, falta de verificac
 autorización, pérdida de datos.
 
 No bloquea por: nombres que habrías elegido distinto, formato que el linter no marca,
-comentarios ausentes, preferencias de estilo en los tests. Eso va en `NITS`.
+comentarios ausentes, preferencias de estilo en los tests. Eso va en `NITS` —*nitpick*,
+señalamientos menores que se registran y no detienen nada.
 
 Un revisor que bloquea por preferencias entrena a todos a ignorar las revisiones.
 

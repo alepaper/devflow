@@ -118,8 +118,9 @@ and the legacy name exist, stop and ask — merging them blindly can lose task f
 Procedure: `references/plan-layout.md`.
 
 
-Read the spec and the code it touches. Note existing patterns, the test setup, and **the
-real commands**: how tests run, how the build runs, how lint runs, and **how a fresh
+Read the spec and the code it touches. Note existing patterns, the documentation convention, the test setup, and **the
+real commands**: how tests run, how the build runs, how lint runs (`cmd_lint`, which the
+agents now run alongside tests and build), and **how a fresh
 checkout is prepared** (`npm ci`, `uv sync`, `bundle install`). That last one is
 `cmd_setup`, and `/autopilot` needs it to make a new worktree runnable — a worktree has
 no `node_modules` and no `.env`. Note which ignored files the suite needs too. Record them in
@@ -149,6 +150,39 @@ sin abrir nada que no esté declarado.
 Regla que lo mantiene honesto: **si un implementador necesita explorar para entender qué
 hacer, la tarea estaba incompleta.** No es culpa del agente; es un defecto de planeación,
 igual que una colisión de archivos.
+
+### Step 1c — Settle whether the code gets documented
+
+Detect before asking. Open a handful of existing source files and look at what the project
+already does: docstrings on public functions, JSDoc, nothing at all.
+
+- **The project has a clear convention** → follow it. Record it and don't ask; asking
+  about something the codebase already answers is noise.
+- **No convention, or mixed** → ask once:
+
+```
+El código existente no tiene una convención clara de documentación.
+¿Documentamos lo que se implemente?
+
+  si   docstrings en lo que escriban las tareas
+  no   los tests documentan el comportamiento (por defecto)
+```
+
+Es binario a propósito. Un desarrollador documenta lo que escribe o no lo documenta;
+partirlo por "superficie pública" es una convención de autor de bibliotecas, y la mayoría
+de los planes son código de aplicación donde esa línea no significa nada. Si una función
+necesita explicación, la necesita esté exportada o no.
+
+Aplica solo al código que las tareas escriben. Dependencias, código generado y archivos
+de terceros no entran: no son tuyos para documentar.
+
+Record it in `plan.md` as `documentar_codigo`, and write the chosen style into each task's
+**Contexto** so the implementer doesn't have to infer it.
+
+The default is `no` on purpose, and it's a position rather than an omission: tests
+describe behavior and can't drift from it, while comments can and do. Make it explicit so
+`/cross-review` knows whether a missing docstring is a blocker or a NIT — today it's
+always a NIT, which is only right if `no` is the answer.
 
 ### Step 1a — Carry the model choice forward
 
@@ -478,6 +512,8 @@ docs/plans/<slug>/
 - [ ] No cycles: every task lands in exactly one wave
 - [ ] Every task is S or M, with acceptance criteria and a verification command
 - [ ] `plan.md` frontmatter records the project's real test, build and lint commands
+- [ ] `documentar_codigo` is set — detected from the codebase, or asked once when unclear
+- [ ] Each task's Contexto states the documentation style, so the implementer doesn't infer it
 - [ ] Nothing shared is written by more than one agent
 - [ ] The wave map, the matrix and the recommended agent count were shown to the user
 - [ ] The user explicitly approved before anything was implemented

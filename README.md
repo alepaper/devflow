@@ -223,7 +223,7 @@ claude plugin disable devflow@alepaper
 | `/spec-check` | Envía el spec a un agente distinto del que lo escribió. Detecta ambigüedades, criterios no falsables, soluciones disfrazadas de requerimiento, contradicciones y dependencias no confirmadas. Veredicto: `LISTO`, `HUECOS` o `BLOQUEADO`. |
 | `/breakdown` | Parte el spec en tareas verticales. Si hay varios specs, los lista para que elijas uno, varios o todos. Inventaría qué documentos y plantillas afirman hoy lo que va a cambiar, construye la matriz archivo → tareas y convierte cada colisión en dependencia. Produce `plan.md` y un archivo por tarea. |
 | `/autopilot` | Reparte tareas a N agentes, con TDD obligatorio, revisión por un agente distinto y un commit por tarea. Argumentos: `dev`, `test`, `review`, `task T-00N`, `all`. |
-| `/cross-review` | Revisa código con un agente distinto del que lo escribió. Veredicto: `APPROVED`, `CHANGES_REQUESTED` o `BLOCKED`. |
+| `/cross-review` | Revisa código con un agente distinto del que lo escribió. Veredicto: `APPROVED`, `CHANGES_REQUESTED` o `BLOCKED`, separando lo que bloquea de lo que son NITS (señalamientos menores que no detienen nada). |
 | `/progress` | Estado del plan: hecho, en vuelo, listo, bloqueado, y la próxima decisión pendiente. Solo lectura. |
 | `/tracker` | Registra las tareas en Linear y migra planes existentes preservando estado. Reversible. |
 | `tdd` | Red-green-refactor y depuración por causa raíz. `user-invocable: false`: la carga Claude durante la implementación y no aparece en el menú de `/`. |
