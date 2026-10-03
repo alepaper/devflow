@@ -237,117 +237,68 @@ Referencia extendida con el flujo sesión por sesión:
 
 ## Ejemplo de uso
 
-Recorrido completo sobre una feature pequeña: recuperación de contraseña por correo.
+Recorrido sobre una feature pequeña: recuperación de contraseña por correo.
 
-### Paso 0 — Verificar el revisor
-
-Antes de la primera tarea, no después de cinco:
+### 0. Comprobaciones previas
 
 ```bash
-printf 'Responde únicamente con este bloque, sin nada más:\n\nVERDICT: APPROVED\nBLOCKERS:\nNITS:\n' \
+printf 'Responde solo con este bloque:\n\nVERDICT: APPROVED\nBLOCKERS:\nNITS:\n' \
   | codex exec --skip-git-repo-check -
+git status --porcelain
 ```
 
-Debe imprimir `VERDICT: APPROVED`. Si no, corrige el comando antes de seguir.
+El revisor debe imprimir `VERDICT: APPROVED`. El árbol debe estar limpio: `/autopilot`
+hace un commit por tarea y absorbería los cambios sueltos.
 
-Verifica también que el árbol esté limpio: `/autopilot` hace un commit por tarea y los
-cambios sueltos se colarían dentro.
-
-### Paso 1 — Levantar el requerimiento
-
-Prompt inicial:
+### 1. `/spec` — levantar el requerimiento
 
 ```
 /spec recuperación de contraseña por correo
 
-Contexto del proyecto:
-- Stack: Node + Express + PostgreSQL, frontend en React
-- Tests: npm test
-- Build: npm run build
-- Reviso con: codex
+Stack: Node + Express + PostgreSQL, frontend en React
+Tests: npm test
+Build: npm run build
+Reviso con: codex
 ```
 
-Las cuatro últimas líneas evitan el reconocimiento y quedan guardadas en `plan.md` para
-que `/autopilot` las use después.
+Las cuatro últimas líneas evitan el reconocimiento y quedan en `plan.md` para `/autopilot`.
 
-Claude responde con una hipótesis, un número de confianza, y **una** pregunta:
+Entrevista una pregunta a la vez, cada una con su suposición adjunta. Acepta también el
+requerimiento completo de entrada: con un texto largo devuelve primero lo que entendió.
 
-```
-HIPÓTESIS: Quieres que la gente recupere su cuenta sin escribirle a soporte.
-CONFIANZA: ~35% — falta: qué canal usan hoy, cuánto dura el token, qué pasa si
-           el correo no llega.
+Antes de pedir aprobación entrega escenarios concretos para que los respondas. Las
+respuestas quedan en el spec.
 
-P: ¿El correo sale de tu sistema o de un proveedor tipo SendGrid?
-   SUPONGO: un proveedor, porque montar entregabilidad propia rara vez vale la pena
-   para esto.
-```
+Salida: `docs/plans/recuperacion-de-contrasena/spec.md` con `estado: aprobado`.
 
-Responde corto. Sigue preguntando de a una hasta poder anticipar tus siguientes tres
-respuestas. Puedes entregarle el requerimiento completo desde el principio: con una
-descripción larga primero te devuelve lo que entendió y te pide que lo corrijas.
-
-Antes de pedir aprobación valida el borrador y te entrega escenarios concretos:
-
-```
-Antes de aprobar, tres situaciones. Dime qué debería pasar:
-
-1. Alguien pide recuperación con un correo que no existe en el sistema.
-2. El token expira mientras el usuario tiene el formulario abierto.
-3. Alguien pide recuperación cinco veces en un minuto.
-```
-
-Si dudas en alguna, ahí hay un hueco. Las respuestas quedan escritas en el spec.
-
-Resultado: `docs/plans/recuperacion-de-contrasena/spec.md` con `estado: aprobado`.
-
-### Paso 2 — Validar con otro agente
+### 2. `/spec-check` — validar con otro agente
 
 ```
 /spec-check
 ```
 
-Manda el spec a codex **sin la conversación**, porque ese agente debe ver solo lo que
-verá quien construya. Devuelve `LISTO`, `HUECOS` o `BLOQUEADO`.
+Envía el spec a codex sin la conversación. Veredicto: `LISTO`, `HUECOS` o `BLOQUEADO`.
+Cada hueco vuelve como pregunta, no como contenido inventado.
 
-`HUECOS` es el resultado normal. Cada hueco vuelve como pregunta para ti, no como algo
-que Claude rellene.
-
-### Paso 3 — Partir en tareas
+### 3. `/breakdown` — partir en tareas
 
 ```
 /breakdown
 ```
 
-Si hay varios specs en `docs/plans/`, primero los lista para que elijas:
+Con varios specs en `docs/plans/`, los lista con su estado y validación para que elijas
+uno, varios o todos. Eligiendo varios, la matriz abarca todos a la vez.
 
-```
-Encontré 4 specs en docs/plans/:
-
-  #  Plan                        Estado     Validación      Plan
-  1  recuperacion-de-contrasena  aprobado   spec-check ✔    —
-  2  portal-ds                   aprobado   sin validar     —
-  3  notificaciones-push         aprobado   spec-check ✔    ya planeado (7 tareas)
-  4  reportes-mensuales          borrador   —               —
-
-¿Cuál planeo? Puedes decirme un número, varios (1,2), o "todos".
-```
-
-Si eliges varios, la matriz de archivos se construye **sobre todos a la vez**: dos planes
-en paralelo pueden chocar en un archivo igual que dos tareas del mismo plan, y una matriz
-por plan no lo vería.
-
-Luego construye la matriz, que es donde aparecen las colisiones:
+La matriz es donde aparecen las colisiones:
 
 ```
 | Archivo                    | Tareas        |
 | src/rutas/index.ts         | T-002, T-003   ← COLISIÓN
 ```
 
-Dos tareas necesitan el mismo archivo. Se resuelve partiendo el archivo, extrayendo una
-tarea aguas arriba que haga todas sus ediciones, o encadenando las tareas. Claude
-propone, tú decides.
+Se resuelve partiendo el archivo, extrayendo una tarea aguas arriba, o encadenando.
 
-Luego muestra las olas y el número de agentes que sirve de verdad:
+Después, el mapa de olas:
 
 ```
 Ola 1: T-000                 → 1 agente   (base del proyecto, siempre sola)
@@ -358,40 +309,38 @@ Ola 4: T-004                 → 1 agente
 Agentes recomendados: 2
 ```
 
-Revisa la matriz antes de aprobar: es la evidencia de que el plan es seguro en paralelo.
+Revisa la matriz antes de aprobar. Al aprobar, recomienda cambiar a un modelo más ligero
+para la ejecución.
 
-### Paso 4 — Ejecutar
+Salida: `plan.md` y un archivo por tarea en `tasks/`.
+
+### 4. `/autopilot` — ejecutar
 
 ```
 /autopilot
 ```
 
-Pregunta con cuántos agentes arrancar y reparte tareas por nombre. Por cada una: tests
-que fallan primero, código mínimo, refactor, suite completa, build, commit solo de los
-archivos declarados, revisión por otro agente, aprobación.
+Pregunta cuántos agentes y reparte tareas por nombre. Por tarea: RED, GREEN, refactor,
+suite completa, build, commit de los archivos declarados, revisión por otro agente, merge.
 
-Por pedazos:
+Por partes:
 
 ```
 /autopilot dev            implementa y deja todo en in_review
-/autopilot review         solo revisa lo que espera
-/autopilot task T-003     solo esa tarea
+/autopilot review         revisa lo que espera
+/autopilot task T-000     una sola tarea
 ```
 
-Para la primera corrida en un proyecto nuevo, arranca con una tarea y un agente:
+En un proyecto nuevo, `/autopilot task T-000` con un agente antes de escalar.
 
-```
-/autopilot task T-001
-```
-
-### Paso 5 — Consultar estado
+### 5. `/progress` — consultar estado
 
 ```
 /progress
 ```
 
-Solo lectura. Qué está hecho, qué está en vuelo y con qué agente, qué espera y por quién,
-y cuál es la próxima decisión que te toca.
+Solo lectura: hecho, en vuelo y con qué agente, esperando y por quién, worktrees
+huérfanos, y la próxima decisión pendiente.
 
 ---
 
@@ -659,6 +608,11 @@ La elección se reparte así:
 |---|---|
 | `/spec`, `/spec-check`, `/breakdown` | Tú, con `/model`. Corren en la sesión principal; una skill no puede cambiar su propio modelo |
 | Implementación y revisión | devflow, vía el campo `model` del subagente |
+
+Al aprobar el plan, `/breakdown` recomienda cambiar a un modelo más ligero: las decisiones
+caras ya se tomaron y lo que queda en la sesión es coordinación, que corre durante todo el
+plan. Uno más ligero, no el más barato que haya — el orquestador todavía juzga si un
+conflicto es defecto de planeación o si una tarea está mal especificada.
 
 Recomendación: el modelo más capaz para las fases de decisión, uno medio para
 implementación. **El nivel de implementación depende de qué tan buenas sean tus tareas** —

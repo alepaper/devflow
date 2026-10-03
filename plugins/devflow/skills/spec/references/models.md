@@ -42,7 +42,23 @@ Una tarea vaga obliga al agente a decidir diseño, y ahí lo barato produce cód
 que rehacer.
 
 Si `/cross-review` empieza a devolver `CHANGES_REQUESTED` seguido, revisa las tareas antes
-de subir el modelo.
+de cambiar a un modelo más capaz.
+
+## El momento de cambiar a un modelo más ligero
+
+Al terminar `/breakdown`, no antes. Es cuando las decisiones caras ya se tomaron —
+partición, matriz de archivos, grafo de dependencias — y lo que queda en la sesión es
+coordinación: repartir tareas, parsear reportes de seis líneas, mergear en orden.
+
+El orquestador corre durante todo el plan, así que el ahorro se acumula por cada tarea.
+
+**Uno más ligero, no el más barato que haya.** El orquestador sigue decidiendo si un conflicto de merge
+es defecto de planeación, si una suite roja tras merge limpio es conflicto semántico, y si
+una tarea que rebota tres veces está mal especificada. Eso es juicio, y un modelo del piso
+lo deja pasar.
+
+Vale cambiarlo de vuelta por uno más capaz para: replanear, un conflicto semántico, o una
+tarea que rebota en revisión.
 
 ## Dónde se guarda
 

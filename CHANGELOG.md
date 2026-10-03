@@ -8,6 +8,34 @@ Formato según [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ---
 
+## [1.2.2]
+
+### Agregado
+
+- **Recomendación de cambiar a un modelo más ligero al terminar `/breakdown`.** Al aprobar
+  el plan, las decisiones caras ya se tomaron; lo que queda en la sesión es coordinación, y
+  el orquestador corre durante todo el plan, así que el ahorro se acumula por tarea. Uno
+  más ligero, no el más barato que haya: el orquestador todavía juzga si un conflicto de
+  merge es defecto de planeación o si una tarea que rebota está mal especificada. Se dice
+  una vez, y se omite si `modelo_implementacion` es `inherit`.
+
+### Cambiado
+
+- **El mensaje de recomendación de modelo ahora pide, no informa.** Decía "los agentes de
+  implementación corren con sonnet", que es un dato sobre los subagentes y no le pedía nada
+  al usuario; la recomendación es sobre el modelo de la sesión. También se retiró la
+  metáfora de escalera: "vuelve a subirlo" pasó a "cámbialo de vuelta por uno más capaz".
+
+- **Sección "Ejemplo de uso" del README reducida de 161 a 110 líneas.** Los títulos llevan
+  el comando, las comprobaciones previas quedaron como dos comandos en un bloque, y se
+  retiraron los ejemplos de salida que solo ilustraban tono. Se conservaron los dos que
+  enseñan a leer algo: la fila de colisión de la matriz y el mapa de olas.
+
+- `/autopilot task T-001` → `task T-000` en la recomendación de primera corrida, que
+  estaba desactualizada desde que T-000 se volvió obligatoria.
+
+---
+
 ## [1.2.1]
 
 Corrección de un esquema de nombres que rompía toda ola paralela, encontrada ejecutando

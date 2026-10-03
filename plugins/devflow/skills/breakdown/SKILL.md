@@ -323,6 +323,48 @@ run in parallel, and it's something a human can actually check.
 
 Never overwrite a plan with open tasks from different work. Stop and ask.
 
+### Step 8 — Hand off, and recommend stepping the model down
+
+After approval, say what comes next and suggest lowering the session model. **This is the
+natural moment**: the expensive part just ended.
+
+Planning is where the irreversible decisions live — the slicing, the file matrix, the
+dependency graph. That's done. What remains in this session is coordination: reading
+frontmatter, dispatching tasks by name, parsing six-line reports, merging in order. The
+implementation agents run on their own model from `modelo_implementacion`, so the session
+model no longer governs the code being written — only the orchestration around it.
+
+The orchestrator runs for the whole plan, so the saving compounds across every task.
+
+```
+Plan aprobado: 5 tareas, 4 olas, 2 agentes recomendados.
+
+Te recomiendo cambiar a un modelo más ligero antes de ejecutar. Lo que queda en
+esta sesión es coordinación —repartir tareas, parsear reportes, mergear— y la
+implementación la hacen agentes aparte con su propio modelo.
+
+  /model sonnet
+
+Cámbialo de vuelta por uno más capaz si: aparece un conflicto semántico tras un
+merge limpio, una tarea rebota tres veces en revisión, o vas a replanear.
+
+Cuando quieras: /autopilot
+```
+
+El mensaje tiene que **recomendar**, no informar. "Los agentes corren con sonnet" es un
+dato sobre los subagentes y no le pide nada al usuario; la recomendación es sobre el
+modelo de *esta* sesión, y tiene que decirse como tal.
+
+**Recommend one step lighter, not the cheapest available.** The orchestrator still makes the calls
+that decide whether the plan survives: is this merge conflict a planning defect, is this
+red suite a semantic conflict, does a task bouncing three times mean it's mis-specified.
+Those are judgment, and a floor-level model will wave them through.
+
+Skip the suggestion entirely when `modelo_implementacion` is `inherit` — the user already
+said they don't want to manage this, and repeating it is nagging.
+
+Say it **once**. If they stay on the same model, that's an answer.
+
 ## Sizing
 
 | Size | Files | Rule |
@@ -396,6 +438,8 @@ docs/plans/<slug>/
 - Planning a spec still in `borrador`
 - Replacing a plan that has open tasks without asking
 - A per-plan matrix when several plans were selected — cross-plan collisions go unseen
+- Repeating the model suggestion after the user already chose to stay
+- Suggesting the cheapest model for the orchestrator, which still has to judge stop conditions
 - Writing to the repo root instead of `docs/plans/<slug>/`
 - Starting to implement in the same turn the plan was approved
 
@@ -437,3 +481,5 @@ docs/plans/<slug>/
 - [ ] Nothing shared is written by more than one agent
 - [ ] The wave map, the matrix and the recommended agent count were shown to the user
 - [ ] The user explicitly approved before anything was implemented
+- [ ] After approval, the model step-down was suggested once, with what to raise it back
+      for — and skipped if `modelo_implementacion` is `inherit`
