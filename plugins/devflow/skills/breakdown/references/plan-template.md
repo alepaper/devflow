@@ -23,6 +23,7 @@ cmd_setup: pnpm install --frozen-lockfile
 # archivos ignorados que la suite necesita y hay que copiar a cada worktree
 worktree_files: [.env]
 rama_integracion: devflow/<slug>
+plan_check:                   # EJECUTABLE | HUECOS | omitido
 # modelos: el de planeación es recomendación (lo fija /model), el de
 # implementación lo usa devflow al despachar subagentes
 modelo_planeacion: claude-opus-4-6
@@ -117,7 +118,9 @@ En modo Linear, agrega la columna de enlace al issue.
 | | Alto/Medio/Bajo | |
 
 ## Puntos de parada obligatoria
-Cosas que el autopilot NO puede decidir solo. Si una tarea toca alguno, para y pregunta.
+Tareas que tocan algo que `git revert` no deshace. Se autorizan o se excluyen **al
+arrancar** `/autopilot`, mostrando cuántas tareas dependen de cada una, y después no se
+vuelve a preguntar.
 
 - Migraciones destructivas de datos
 - Cambios de autenticación o permisos

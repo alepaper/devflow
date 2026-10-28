@@ -58,11 +58,18 @@ No tomes ninguna otra tarea. Si terminas, reporta y para.
 Restricciones duras:
 - Solo edita los archivos que TU tarea declara. Ningún otro.
 - Solo escribe en docs/plans/<slug>/tasks/T-003.md. Ningún otro archivo del plan.
-- Si necesitas tocar un archivo no declarado, PARA y reporta: el plan tiene una
-  colisión que la matriz no vio, y eso se arregla en el plan, no improvisando.
-- Si un test no pasa y no es obvio por qué, PARA y reporta.
-- Si la tarea toca auth, permisos, pagos, migraciones destructivas, borrado de datos
-  o algo no reversible con `git revert`, PARA y pide autorización.
+- Si necesitas tocar un archivo no declarado, repórtalo al orquestador en vez de
+  editarlo: él revisa la matriz y decide si está libre o en contención. No frena la
+  corrida, pero tampoco lo tomas por tu cuenta.
+- Si un test no pasa, insiste. Si lo que falla es el ENFOQUE planeado, cámbialo:
+  los criterios de aceptación son el contrato, el Contexto era una propuesta.
+  Actualiza el Contexto con lo que hiciste. Reporta blocked SOLO si un criterio
+  de aceptación es imposible de cumplir.
+  La corrida es desatendida: no esperes respuesta de nadie. Ante una ambigüedad
+  dentro de tu tarea, decide lo más consistente con el spec, anótalo en la
+  bitácora y sigue.
+- Lo irreversible se autorizó al arrancar la corrida. Si la tarea llegó hasta ti,
+  está autorizada.
 ```
 
 ## Por qué el reporte es tan corto

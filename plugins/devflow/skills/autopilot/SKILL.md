@@ -17,6 +17,9 @@ Three invariants, none negotiable:
 1. **No code counts as done without tests written before it.**
 2. **No agent reviews its own code.** Ever. Not with a fresh prompt, not "carefully".
 3. **No agent picks its own task.** You — the orchestrator — assign them.
+
+Autonomy relaxes none of these. Running unattended is exactly when they matter most:
+nobody notices the shortcut until morning.
 4. **Con más de un agente, cada tarea corre en su propio worktree.** Sin aislamiento, la
    compuerta de suite verde del paso 6 no se puede hacer cumplir: un rojo por trabajo
    ajeno a medias es indistinguible de una regresión propia.
@@ -179,8 +182,12 @@ This is the orchestrator's loop. Repeat until the plan is done or something bloc
 Re-read the task files. A task is ready when `estado: pending` and every id in
 `depende_de` has `estado: done`.
 
-Do this **fresh each round**. A task that finished since the last round may have unlocked
-others.
+Do this **after every completion, not once per wave**. Waves describe the graph's shape;
+they are not a schedule. If T-002 finishes and T-004 only depended on T-002, dispatch
+T-004 immediately — making it wait for T-003 to finish the "wave" wastes exactly the hours
+this is built to use.
+
+An agent that frees up gets the next ready task right away. The pipeline stays full.
 
 ### 2. Assign, don't offer
 
@@ -206,7 +213,7 @@ prompt, not the authoring loop; and you, the orchestrator, never load it at all.
 injected where it isn't used is context paid for on every turn for nothing.
 
 Override the subagent's `model` per call from `modelo_implementacion` in `plan.md` when
-it's set.
+it's set, and its `maxTurns` from the task's dependent count — see the budget table below.
 
 If the subagent isn't available — devflow installed as plain skills rather than as a
 plugin — fall back to a generic agent and tell it **by name** to load the `tdd` skill.
@@ -280,27 +287,103 @@ break it. Don't create them. Per-task history goes in that task's own bitácora 
 
 `plan.md` is written only by the orchestrator, never by a working agent.
 
-## Stop conditions — do not push through
+## Autonomous by default — resolve, don't park
 
-Stop, notify, and ask the user when:
+`/autopilot` runs unattended for hours. **It resolves. It doesn't ask, and it almost never
+abandons a task.**
 
-- A test can't be made to pass, or the build breaks without an obvious fix
-- The spec is ambiguous, or the task needs a decision the spec doesn't cover
-- Review came back CHANGES_REQUESTED three times on one task
-- The task touches anything on the plan's **puntos de parada obligatoria**: auth or
-  permissions, destructive migrations, payments, deletions, secrets, **or anything you
-  cannot undo with `git revert`**
-- An agent reports it needs a file its task didn't declare
-- A merge conflict appears — the plan had a collision the matrix missed. Fix the plan,
-  don't resolve the conflict by hand
-- The suite goes red after a conflict-free merge — a semantic conflict between two tasks
-  that share no file. Name both tasks and stop
-- A worktree can't run the suite because `cmd_setup` is missing or incomplete — that's a
-  T-000 defect; fix it there rather than patching each worktree
-- Dispatching parallel tasks while T-000 is still open
+### The distinction that makes it work
 
-Re-invoking `/autopilot` resumes from the ready set. State is in the task files, so
-resuming across sessions is free.
+> **Acceptance criteria are the contract. The approach is not.**
+
+The criteria come from the spec the user approved. The approach — which library, which
+structure, which exact signature — was proposed by the planner before any code existed.
+
+An agent that can't make the planned approach work **changes the approach**. It does not
+park. As long as the criteria are met, the task is done correctly even if it looks nothing
+like the Contexto said.
+
+Almost everything that used to block lands here: the library doesn't do what was assumed,
+the signature doesn't fit, the neighbouring pattern doesn't apply. None of that is a
+blocker — it's what you only learn by building.
+
+### The ladder
+
+1. **Retry.** Execution error: a bad import, a mock wired wrong.
+2. **Change the approach.** Pick another that meets the same criteria, update the task's
+   Contexto with what you actually did, record the decision. Criteria untouched.
+3. **Adjust downstream.** The new approach changes what dependent tasks will consume.
+   Update their Contexto before anyone picks them up. Their criteria are untouched too.
+4. **Stop the run.** Only when an **acceptance criterion** can't be met. That isn't an
+   implementation problem: the spec asks for something that can't be built as written,
+   and no change of approach fixes it.
+
+Steps 1–3 are normal work, not exceptions. Step 4 should be rare; if it happens often the
+problem is in `/spec`, not here.
+
+### When the run actually ends
+
+There is no general "park and continue". In a dependency graph, abandoning an upstream
+task kills everything hanging off it — continuing with "the rest" when there is no rest
+just burns the night.
+
+So: a task that can't be resolved and **has dependents** ends that branch. If ready tasks
+remain elsewhere, continue with them; if none remain, **the run ends and says why**. A
+task with no dependents is a leaf — mark it and keep going, nothing needed it.
+
+Ending early with an honest report beats pretending to work with nothing executable.
+
+### Retry budget follows the graph
+
+Giving up on a task costs whatever its descendants cost. Before abandoning one, count how
+many tasks depend on it, directly or transitively:
+
+Count how many tasks depend on it, directly or transitively, and **pass `maxTurns`
+accordingly when dispatching** — the subagent's default of 30 is the leaf case:
+
+| Dependientes | `maxTurns` | Presupuesto |
+|---|---|---|
+| 0 (hoja) | 30 | Normal. Abandonarla cuesta una tarea. |
+| 1–2 | 45 | Prueba al menos dos enfoques distintos antes de rendirte. |
+| 3 o más, o es T-000 | 60 | Agota el peldaño 3. Rendirse aquí termina la corrida. |
+
+Without the override the policy is decorative: every task would get the same 30 turns
+regardless of whether abandoning it costs one task or the whole plan.
+
+### Pre-authorize the irreversible, once, at the start
+
+The one exception to "decide it yourself". `git revert` undoes code; it does not undo a
+dropped column, a payment, deleted records, or a leaked secret. At 3am with nobody
+watching there is no recovery.
+
+Ask once at launch, **showing how many tasks depend on each** — excluding a leaf costs one
+task, excluding an upstream one costs its whole subtree:
+
+```
+2 tareas tocan cosas que `git revert` no deshace:
+
+  T-004  migración que elimina la columna `usuarios.legacy_id`   (2 tareas dependen)
+  T-007  borrado de registros huérfanos en producción            (hoja)
+
+  autorizar   las ejecuto sin preguntar
+  excluir     las saco de esta corrida y de lo que dependa de ellas
+```
+
+No such tasks → don't ask at all. Once answered, nothing else is asked for the rest of the
+run.
+
+### Record what you decided
+
+Append to `docs/plans/<slug>/decisiones.md` — written only by you, so nothing contends on
+it. Five fields: what was expected, what you did, whether the criteria still hold, whether
+it propagated downstream, and whether it's reversible.
+
+**"Propagated downstream" is the one that matters in the morning**: it says whether the
+change stayed inside one task or rippled through the plan.
+
+Obvious calls get no entry. The file is only useful if it reads in two minutes.
+
+Full policy: `references/autonomy.md`.
 
 ## Status reporting
 
@@ -381,4 +464,13 @@ user. If worktrees were used, list branches still pending merge.
 - [ ] The full suite and the build are green at the end
 - [ ] Notifications fired per task and at plan completion
 - [ ] Nothing on the "puntos de parada obligatoria" list shipped without sign-off
-- [ ] Blockers were escalated, not worked around
+- [ ] The run never halted waiting for an answer after launch
+- [ ] Irreversible tasks were authorized or excluded at the start, with their dependent
+      count shown — never improvised mid-run
+- [ ] No task was abandoned before trying a different approach, with `maxTurns` passed
+      per task according to its dependent count
+- [ ] Tasks were dispatched as soon as their dependencies cleared, not at wave boundaries
+- [ ] No acceptance criterion was altered to make a task pass
+- [ ] Every non-obvious autonomous decision is in `decisiones.md` with its four fields
+- [ ] An early end named the unmet criterion and the tasks blocked by dependency
+- [ ] The integration branch is green: any merge that broke it was reverted and the task retried with a different approach

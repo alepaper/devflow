@@ -118,6 +118,54 @@ to a problem that isn't written down. Ask for the problem before accepting the s
 Starting confidence around 70–80% after a thorough brief is honest. Above 90% before
 asking anything means you're trusting the document's tone instead of its content.
 
+### Step 2b — Converge fast: state assumptions, don't ask about them
+
+**A question is expensive; an assumption is cheap to correct.** But some things must never
+be assumed, and the line is clean:
+
+> **Assume choices. Ask for facts.**
+
+A **choice** is a design decision with a defensible default: token expiry, error format,
+whether to paginate. Wrong guesses here are cheap — they show up as a test failing or a
+line the user corrects while reading.
+
+A **fact** exists in the world and you cannot derive it. A catalog of states, what
+`estado = 3` means, the columns of a table, a business rule, the shape an external API
+returns. Guessing a fact fails **silently**: the code runs, the tests you wrote pass, and
+the result is wrong. And the user answers it in ten seconds.
+
+| Pregunta siempre | Supón y confirma |
+|---|---|
+| Catálogos y enumeraciones: qué estados existen, qué significa cada código | Formato de los errores |
+| Estructura de tablas, nombres de columnas, qué consulta se debe hacer | Si paginar y de a cuántos |
+| Reglas de negocio: qué cuenta como pedido atrasado, cómo se calcula un cobro | Expiración de un token |
+| Contratos externos: qué devuelve esa API, qué campos trae | Nombres internos de funciones |
+| Valores fijos que alguien ya decidió: umbrales, límites, SLAs | Estructura de carpetas |
+
+Para lo demás, decide y dilo. Ask only when getting it wrong would change the plan — the
+slicing, the dependencies, a constraint that rules out an approach.
+
+Everything else you infer from the repo, the stack's conventions, and what the user
+already said, and you state it as a list they can correct in one pass:
+
+```
+Voy a asumir esto, corrígeme lo que esté mal:
+- El token de recuperación expira en 1 hora (estándar; el spec no lo dice)
+- El correo sale por el proveedor que ya usa el proyecto
+- No se avisa al usuario si el email no existe, para no filtrar cuentas
+```
+
+Three assumptions stated cost one message. Three questions cost three rounds, and the
+answers to two of them were predictable.
+
+**Budget: about five questions.** Past that, stop asking and write the spec with the
+remaining unknowns marked as assumptions. The user corrects them reading the document,
+which is faster than answering them one by one and more accurate, because they see the
+whole thing at once.
+
+The stopping test is unchanged — can you predict their next three answers — but reaching
+it by assuming and confirming is usually two rounds instead of eight.
+
 ### Step 3 — One question at a time, each with your guess attached
 
 ```
@@ -127,6 +175,10 @@ P: ¿Quién va a abrir esto todos los días: tú, los vendedores, o el cliente f
 ```
 
 Then **stop and wait.** Never send a batch of questions.
+
+This applies to the few things that genuinely need asking, after Step 2b handled the rest
+by assumption. If you find yourself on question six, the remaining unknowns belong in the
+document as assumptions, not in another round.
 
 - The user reacts to a wrong guess faster than they generate an answer from scratch
 - A guess commits you to a position you can be visibly wrong about
@@ -234,6 +286,9 @@ Nothing else. No tasks, no code, no file scaffolding. Those belong to `/breakdow
 | "Preguntar tanto le hace perder tiempo" | 6 questions cost minutes. Building the wrong thing costs days, and the user pays. |
 | "Lo voy resolviendo mientras construyo" | Discovery during implementation is rework at 10x the price. |
 | "Dijo 'lo que tú veas', así que decido yo" | That's delegation, not a decision. Offer two concrete options instead. |
+| "Pregunto para estar seguro" | If you can predict the answer, it's an assumption to state, not a question to ask. |
+| "Supongo la estructura de la tabla y el test me corrige" | It won't. The query runs, the test passes, the data is wrong. Facts get asked. |
+| "Ya van ocho preguntas pero falta poco" | Write the draft with the rest as assumptions. They correct it in one pass, reading everything at once. |
 | "Le mando las 6 preguntas de una y ahorramos vueltas" | Batches get skim-read. You'll get 6 shallow answers instead of 3 real ones. |
 | "Lo releí y está completo" | You're checking your own work against your own understanding. That's what Layer 3 is for. |
 | "Ese hueco lo puedo inferir del contexto" | Then write it as a question. An inferred requirement is an invented one. |
@@ -269,6 +324,9 @@ Nothing else. No tasks, no code, no file scaffolding. Those belong to `/breakdow
 - [ ] Any contradiction inside the brief was surfaced before new questions
 - [ ] No question re-asked something the brief already answered
 - [ ] Questions were asked one at a time, each with a guess attached
+- [ ] Anything inferable was stated as an assumption to correct, not asked
+- [ ] Nothing factual — catalogs, schemas, business rules, external contracts — was assumed
+- [ ] No more than about five questions before writing the draft
 - [ ] At least one "¿qué querrías realmente?" probe ran on any buzzword answer
 - [ ] The spec has: Resumen, Usuario, Problema, Éxito medible, Alcance, Fuera de alcance,
       Restricciones, Casos borde, Preguntas abiertas

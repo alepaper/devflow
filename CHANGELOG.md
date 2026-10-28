@@ -8,6 +8,86 @@ Formato según [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ---
 
+## [1.4.0]
+
+Dos cambios de fondo: validación en dos puntos antes de construir, y autonomía real
+durante la ejecución.
+
+### Agregado
+
+- **`/plan-check`**, novena skill. Valida el plan con un agente distinto al que lo
+  escribió, con una pregunta por tarea: **¿puede un agente ejecutarla sin explorar el
+  repositorio?** También recalcula la matriz de archivos y el grafo desde las tareas y los
+  contrasta con lo que declara el plan.
+
+  Existía `/spec-check` para el requerimiento y `/cross-review` para el código, pero el
+  plan —lo que `/autopilot` ejecuta literalmente— solo lo revisaba el mismo agente que lo
+  escribió. En una corrida desatendida, una tarea cuyo Contexto dice "sigue las
+  convenciones" se descubre a las 2am y el agente improvisa.
+
+  A diferencia de `/spec-check`, la mayoría de sus huecos los llena el planificador leyendo
+  el código. Solo vuelven al usuario los que son **hechos**.
+
+- `docs/plans/<slug>/decisiones.md`, append-only y escrito solo por el orquestador. Una
+  entrada por decisión que el usuario no había considerado, con cinco campos: qué se
+  esperaba, qué se hizo, si los criterios siguen cumpliéndose, si el cambio se propagó
+  aguas abajo, y si es reversible. El cuarto es el que más importa por la mañana. Las
+  decisiones obvias no se registran: el archivo solo sirve si se lee en dos minutos.
+
+- `references/autonomy.md` con la política por situación.
+
+### Cambiado
+
+- **`/autopilot` corre desatendido y resuelve en vez de preguntar.** Antes tenía nueve
+  condiciones de parada que interrumpían el pipeline entero; una corrida nocturna se
+  frenaba en la primera y desperdiciaba la noche.
+
+  La regla que lo sostiene: **los criterios de aceptación son el contrato, el enfoque no lo
+  es.** Los criterios vienen del spec aprobado; el enfoque lo propuso el planificador antes
+  de que existiera el código. Un agente que no logra hacer funcionar el enfoque planeado lo
+  cambia, actualiza el Contexto de la tarea, propaga el cambio a las dependientes y lo
+  registra. Casi todo lo que antes se bloqueaba cae ahí.
+
+  La corrida solo se detiene cuando un **criterio de aceptación** resulta imposible, que es
+  el spec pidiendo algo que no se construye así. El presupuesto de reintentos escala con el
+  grafo: abandonar una hoja cuesta una tarea, abandonar una raíz cuesta su descendencia
+  entera.
+
+  Lo irreversible se decide **al arrancar** con una sola pregunta, mostrando cuántas tareas
+  dependen de cada una. A las 3am sin nadie mirando, una migración destructiva no tiene
+  punto de retorno.
+
+- **`maxTurns` conectado al grafo:** 30 para una hoja, 45 con 1–2 dependientes, 60 con 3 o
+  más o si es T-000. Sin esta sobreescritura por llamada, el presupuesto de reintentos era
+  decorativo: todas las tareas recibían lo mismo sin importar si abandonarlas costaba una
+  tarea o el plan entero.
+
+- **Despacho continuo.** Las olas describen la forma del grafo, no un horario. Una tarea se
+  despacha apenas sus dependencias quedan listas, sin esperar a que la ola termine.
+
+- **`/spec` distingue hechos de decisiones, y converge con supuestos.** Una decisión tiene
+  default defendible y se supone; un hecho existe en el mundo y no se deriva. Catálogos,
+  estructura de tablas, reglas de negocio y contratos externos **se preguntan siempre**:
+  adivinarlos falla en silencio —el código corre, los tests pasan, el resultado está mal— y
+  el usuario los responde en diez segundos.
+
+  Todo lo demás se declara como lista de supuestos a corregir de una pasada, en vez de
+  preguntarse de a uno. Presupuesto de unas cinco preguntas; pasado eso, el borrador se
+  escribe con lo que falte marcado como supuesto.
+
+- **`/spec-check` es obligatorio con modelo externo y nunca se salta solo.** Sin modelo
+  externo pregunta si correrlo con subagente. Los huecos vuelven **en lote con una
+  respuesta propuesta cada uno**, no como una ronda de preguntas: cuatro se cierran en una
+  vuelta en vez de cuatro. Lo que el usuario no conteste queda en Preguntas abiertas, no se
+  da por aceptado.
+
+- **T-000 tiene su ciclo TDD definido.** Su RED es el chequeo de clon limpio fallando sobre
+  el estado actual, y su GREEN es que pase: rojo-verde real, sin forma de test unitario.
+  Antes quedaba a interpretación y un agente iba a improvisar o a saltarse la regla. Sigue
+  pasando por revisión, porque el clon limpio no atrapa un `.env` commiteado.
+
+---
+
 ## [1.3.0]
 
 Cuatro huecos encontrados auditando la librería contra sí misma.

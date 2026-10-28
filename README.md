@@ -1,11 +1,11 @@
 # devflow para Claude Code
 
-Desarrollo asistido por agentes en ocho skills, desde el levantamiento del requerimiento
+Desarrollo asistido por agentes en nueve skills, desde el levantamiento del requerimiento
 hasta código revisado y commiteado.
 
 ```
-/spec → /spec-check → /breakdown → /autopilot → /progress
-        validación    plan         ejecución    estado
+/spec → /spec-check → /breakdown → /plan-check → /autopilot → /progress
+        valida spec    plan         valida plan   ejecución    estado
 ```
 
 Los artefactos son markdown bajo `docs/plans/<plan>/`. No hay servicio, base de datos ni
@@ -220,7 +220,8 @@ claude plugin disable devflow@alepaper
 | Comando | Función |
 |---|---|
 | `/spec` | Entrevista una pregunta a la vez hasta que el requerimiento no tenga ambigüedad. Valida el borrador en tres capas antes de pedir aprobación. Produce `spec.md`. |
-| `/spec-check` | Envía el spec a un agente distinto del que lo escribió. Detecta ambigüedades, criterios no falsables, soluciones disfrazadas de requerimiento, contradicciones y dependencias no confirmadas. Veredicto: `LISTO`, `HUECOS` o `BLOQUEADO`. |
+| `/spec-check` | Envía el spec a un agente distinto del que lo escribió. Sin modelo externo configurado pregunta si vale la pena correrlo. Detecta ambigüedades, criterios no falsables, soluciones disfrazadas de requerimiento, contradicciones y dependencias no confirmadas. Veredicto: `LISTO`, `HUECOS` o `BLOQUEADO`. |
+| `/plan-check` | Valida el plan con un agente **distinto** al que lo escribió: ¿puede cada tarea ejecutarse sin explorar el repositorio? También recalcula la matriz y el grafo. Obligatorio si hay modelo externo. |
 | `/breakdown` | Parte el spec en tareas verticales. Si hay varios specs, los lista para que elijas uno, varios o todos. Inventaría qué documentos y plantillas afirman hoy lo que va a cambiar, construye la matriz archivo → tareas y convierte cada colisión en dependencia. Produce `plan.md` y un archivo por tarea. |
 | `/autopilot` | Reparte tareas a N agentes, con TDD obligatorio, revisión por un agente distinto y un commit por tarea. Argumentos: `dev`, `test`, `review`, `task T-00N`, `all`. |
 | `/cross-review` | Revisa código con un agente distinto del que lo escribió. Veredicto: `APPROVED`, `CHANGES_REQUESTED` o `BLOCKED`, separando lo que bloquea de lo que son NITS (señalamientos menores que no detienen nada). |
@@ -511,6 +512,26 @@ con quince tareas la diferencia degrada las decisiones del orquestador además d
 
 El detalle no se pierde, vive en la bitácora del archivo de tarea.
 
+### Autonomía
+
+`/autopilot` corre desatendido y resuelve en vez de preguntar. La distinción que lo
+sostiene: **los criterios de aceptación son el contrato, el enfoque no lo es.** Los
+criterios vienen del spec aprobado; el enfoque lo propuso el planificador antes de que
+existiera el código. Un agente que no logra hacer funcionar el enfoque planeado lo cambia,
+actualiza el Contexto de la tarea y registra la decisión.
+
+La corrida solo se detiene cuando un **criterio de aceptación** no se puede cumplir — el
+spec pidiendo algo que no se construye así. El presupuesto de reintentos escala con el
+grafo: abandonar una hoja cuesta una tarea, abandonar una raíz cuesta su descendencia
+entera.
+
+Lo único que pregunta es al arrancar, y solo si hay tareas que `git revert` no deshace:
+se autorizan o se excluyen, mostrando cuántas tareas dependen de cada una.
+
+Al terminar reporta las decisiones tomadas sin consultar, marcando cuáles se propagaron
+aguas abajo. Si terminó antes, nombra el criterio incumplido y cuántas tareas quedaron
+bloqueadas por dependencia.
+
 ### Invariantes
 
 1. **Tests antes del código.** Ninguna tarea cuenta como terminada sin tests que se
@@ -597,6 +618,16 @@ Esto también hace determinista una de las invariantes: `tdd` entra por configur
 porque el agente decida cargarla.
 
 ## Elección de modelos
+
+### Validación en dos puntos
+
+`/spec-check` valida el requerimiento y `/plan-check` valida el plan, los dos con un agente
+distinto al que los escribió. **Con un modelo externo configurado son obligatorios**; sin
+él se pregunta si correrlos con subagente, y nunca se saltan solos.
+
+El segundo existe porque el plan es lo que `/autopilot` ejecuta literalmente, y una tarea
+cuyo Contexto dice "sigue las convenciones del proyecto" se descubre a las 2am, cuando el
+agente improvisa en vez de preguntar.
 
 `/spec` pregunta una vez por proyecto qué modelo usar para los agentes de implementación.
 Pregunta y acepta: no inspecciona el entorno, no busca claves de API, no lee tu

@@ -29,6 +29,36 @@ opinion, not a gate.
 Finish the interview first — validating a draft that's knowingly incomplete just
 rediscovers what you already know is missing.
 
+## Cuándo corre
+
+| Situación | Qué pasa |
+|---|---|
+| `plan.md` declara un CLI externo y responde | **Obligatorio.** Se corre, no se pregunta. |
+| No hay modelo externo | Se pregunta si quiere correrlo con subagente. Sin respuesta clara, se corre. |
+
+Nunca se salta solo. Si no hay modelo externo:
+
+```
+No hay un modelo externo configurado para validar el spec.
+
+Puedo usar un subagente de Claude con contexto limpio. No vio la entrevista,
+así que encuentra cosas — pero comparte los puntos ciegos estructurales del
+que escribió el spec, así que encuentra menos que otro modelo.
+
+  correr    lo valido con subagente
+  saltar    sigo a /breakdown sin validar
+```
+
+Si se salta, queda constancia en el frontmatter:
+
+```yaml
+validado_con: [auditoria, escenarios]
+spec_check: omitido
+```
+
+Eso es información, no una falla: `/breakdown` avisa de un spec sin validar y quien lo lea
+después sabe qué escrutinio tuvo.
+
 ## The hard rule
 
 **The validator must not be the agent that wrote the spec.** Two acceptable setups:
@@ -122,15 +152,31 @@ validado_con: [auditoria, escenarios, spec-check]
 spec_check: LISTO
 ```
 
-**HUECOS** → this is the normal and useful outcome. Each gap becomes **a question for
-the user**, phrased the way the `spec` skill asks: one at a time, with your guess
-attached.
+**HUECOS** → this is the normal and useful outcome. Bring the gaps back **as one batch
+with a proposed answer each**, not as a round of questions. The user corrects what's wrong
+and the rest stands:
 
-> El validador marcó que "usuario autorizado" no está definido en ningún lado.
->
-> P: ¿Quién decide que alguien es usuario autorizado — un grupo de Google, un rol en
->    un sistema que ya existe, o una lista dentro de la app?
->    SUPONGO: un grupo de Google, porque ya es donde vive la pertenencia en Melonn.
+```
+El validador encontró 4 huecos. Propongo esto, corrígeme lo que no cuadre:
+
+1. "usuario autorizado" sin definir
+   → un grupo de Google, que es donde ya vive la pertenencia
+
+2. No dice qué pasa si el correo no llega
+   → reintento a los 5 minutos, y el usuario puede pedir otro
+
+3. No hay límite de solicitudes por hora
+   → 5 por cuenta por hora
+
+4. No dice si el token se invalida al usarse
+   → sí, de un solo uso
+```
+
+Four gaps closed in one round instead of four. The proposal is what makes it work: reacting
+to a concrete answer is faster and more accurate than producing one from a blank prompt.
+
+**La propuesta no se convierte en respuesta sola.** Si el usuario no contesta un punto,
+ese hueco queda escrito en Preguntas abiertas, no se da por aceptado.
 
 **Never close a gap with your own answer.** The validator found something the document
 doesn't say; inventing what it should say reintroduces exactly the inference the
@@ -151,6 +197,9 @@ Two rounds is normal. A third means the interview didn't go deep enough — go b
 
 | Rationalization | Reality |
 |---|---|
+| "No hay modelo externo, me lo salto" | Never skip on your own. Ask; the subagent still finds things. |
+| "Hay codex configurado pero el spec se ve bien, me lo salto" | With an external model it's mandatory. "Looks fine" is the author's judgment, which is what this exists to bypass. |
+| "Devuelvo los huecos de a uno, como manda `/spec`" | That's for the interview. Here the gaps are already known: batch them with proposals. |
 | "Lo reviso yo, que conozco el contexto" | That context is the problem. The builder won't have it. |
 | "Le paso también la conversación para que entienda" | Then you're testing the conversation, not the document. Send the spec alone. |
 | "El hueco es obvio, lo relleno y sigo" | An inferred requirement is an invented one. It becomes a question. |
@@ -174,7 +223,9 @@ Two rounds is normal. A third means the interview didn't go deep enough — go b
 - [ ] The validator was a different agent from the spec's author
 - [ ] Only the spec was sent — no transcript, no reasoning
 - [ ] A structured verdict came back and was parsed
-- [ ] Every gap became a question asked to the user, one at a time
+- [ ] Gaps came back as one batch with a proposed answer each, not as a round of questions
+- [ ] Unanswered proposals stayed in Preguntas abiertas instead of being treated as accepted
+- [ ] With no external model, the user was asked whether to run it at all
 - [ ] No gap was closed with an inferred answer
 - [ ] The report is saved at `docs/plans/<slug>/spec-check.md`
 - [ ] The verdict is recorded in the spec's frontmatter

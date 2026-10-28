@@ -212,6 +212,23 @@ with three worktrees already running is all three.
 Detalle de qué verifica, el criterio de clon limpio, por qué `.gitignore` es crítico aquí,
 y cómo elegir `cmd_setup`: `references/baseline.md`.
 
+**El ciclo TDD de T-000 es el chequeo de clon limpio.** No se le inventan tests unitarios
+para verificar que `.gitignore` tiene una línea: el RED es correr el clon limpio sobre el
+estado actual y verlo fallar, el GREEN es que pase. Es rojo-verde real y reproducible, solo
+que no tiene forma de test unitario.
+
+La evidencia del RED en la bitácora es la salida de ese fallo:
+
+```
+- `2026-10-02T09:14Z` A1 RED: clon limpio falla —
+  `.env.example` no existe, `cmd_setup` no está configurado
+```
+
+T-000 sí pasa por `/cross-review` como cualquier otra: un segundo agente comprueba que
+`.gitignore` cubra dependencias y secretos, que `.env.example` liste todas las variables
+que la suite lee, y que los lockfiles estén commiteados. Eso no lo atrapa el clon limpio
+—un `.env` commiteado pasa el chequeo perfectamente— y es el defecto más caro de la lista.
+
 Lo que no puede quedar implícito: lo no versionado (`node_modules`, `.venv`, el `.env`
 real) **no puede ser producto de una tarea** — está ignorado, así que no queda nada
 commiteado y el siguiente worktree no lo tendría. El trabajo de T-000 es hacer que
@@ -357,7 +374,20 @@ run in parallel, and it's something a human can actually check.
 
 Never overwrite a plan with open tasks from different work. Stop and ask.
 
-### Step 8 — Hand off, and recommend stepping the model down
+### Step 8 — Validate the plan with a different agent
+
+Before handing off, invoke `plan-check`. With an external model configured it's mandatory;
+without one, it asks whether to run with a subagent.
+
+It asks one question of every task: **can an agent execute this without exploring the
+repository?** Your own checklist can't answer that — you wrote the tasks, so you read into
+them what you meant. The gaps it finds are usually yours to fill by reading the code, not
+the user's to answer.
+
+Don't hand off to `/autopilot` with `plan_check: HUECOS`. Each gap becomes an improvised
+decision in an unattended run.
+
+### Step 9 — Hand off, and recommend stepping the model down
 
 After approval, say what comes next and suggest lowering the session model. **This is the
 natural moment**: the expensive part just ended.
@@ -516,6 +546,7 @@ docs/plans/<slug>/
 - [ ] Each task's Contexto states the documentation style, so the implementer doesn't infer it
 - [ ] Nothing shared is written by more than one agent
 - [ ] The wave map, the matrix and the recommended agent count were shown to the user
+- [ ] `plan-check` ran and the plan is `EJECUTABLE`, or the user chose to skip it
 - [ ] The user explicitly approved before anything was implemented
 - [ ] After approval, the model step-down was suggested once, with what to raise it back
       for — and skipped if `modelo_implementacion` is `inherit`
